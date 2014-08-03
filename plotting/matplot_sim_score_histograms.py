@@ -39,7 +39,7 @@ def make_histograms(truescores, fpscores, title):
 	plt.hist(fpscores, normed=True, histtype='step', linewidth=3, label="FP Events, %d" % len(fpscores))
 	plt.legend()
 	plt.xlabel("Likelihood Score")
-	plt.ylabel("Fraction of events")
+	plt.ylabel("Density of events")
 	plt.title("Histogram of TP and FP Event Likelihoods")	
 
 #@interactive 
@@ -48,7 +48,8 @@ def main(simulations, outname, edgeorevent, plot, savedata):
 	truescores=[]
 	fpscores=[]
 	type=0
-	(min_count, max_count) = (5,12)
+#	(min_count, max_count) = (5,12)
+	(min_count, max_count) = (0,500)
 	for i in xrange(len(mysimulations)): 
 		line=mysimulations[i]
 		if len(line.strip().split('\t')) ==3: 

@@ -13,6 +13,7 @@ import cnavg.cactus.oriented
 import cnavg.cactus.graph
 import cPickle as pickle
 
+CNAVG_HOMEEXE="/inside/home/tballing/bin/"
 
 class SetupSim(Target):
 	def __init__(self, options):
@@ -23,6 +24,7 @@ class SetupSim(Target):
 		opts=self.options
 		specfile=opts.specfile
 		outputdir=opts.outputdir
+		id =opts.id 
 		for specs in open(specfile, 'r'): 
 			(blocks, events) = map(int, specs.strip().split())
 			for i in xrange(opts.reps): 
@@ -46,7 +48,7 @@ class RunCnavgSimulation(Target):
 	
 	def run(self):
 		opts=self.options 
-		simoutdir=os.path.join(self.outputdir, "sim%d.%d.%d.%d" % (self.blocks, self.events, 1, self.i))
+		simoutdir=os.path.join(self.outputdir, "sim%d.%d.%d.%d" % (self.blocks, self.events, opts.id, self.i))
 		subprocess.call("mkdir -p %s" % simoutdir, shell=True)
 		cwd=os.getcwd()
 		os.chdir(simoutdir)
@@ -67,7 +69,7 @@ class RunCnavgSimulation(Target):
 		file.close()
 		os.chdir(cwd)
 		
-		for j in xrange(1,10): 
+		for j in xrange(1,(opts.runs+1)): 
 			self.addChildTarget(RunCnavgForSim(simoutdir, j, opts))
 
 class RunCnavgForSim(Target):
@@ -80,10 +82,11 @@ class RunCnavgForSim(Target):
 	def run(self):
 		cwd=os.getcwd()
 		os.chdir(self.simoutdir)
+		opts=self.options
 		if self.options.integer: 
-			subprocess.call("/inside/home/dzerbino/cn-avg/bin/cn-avg.py -n -d . -i %d -s 1000" % self.j, shell=True)
+			subprocess.call("%s/cn-avg.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True)
 		else: 
-			subprocess.call("/inside/home/dzerbino/cn-avg/bin/cn-avg.py -d . -i %d -s 1000" % self.j, shell=True)
+			subprocess.call("%s/cn-avg.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True)
 		os.chdir(cwd)
 
 def add_simulation_options(parser): 
@@ -92,6 +95,9 @@ def add_simulation_options(parser):
 	group.add_option("--reps", dest='reps', type="int", help="The number of reps to do for each simulation")
 	group.add_option("--outputdir", dest='outputdir', help="The directory to write to")
 	group.add_option("--integer", dest='integer', default=False, action="store_true", help="Use integer simulations rather than metagenomic.")
+	group.add_option("--id", dest='id', type="int", help="an id for the simulation runs.")
+	group.add_option("--steps", dest='steps', type="int", default=1000, help="The number of steps per iteration to run.")
+	group.add_option("--runs", dest='runs', type="int", default=10, help="The number of runs per sample to do.")
 	parser.add_option_group(group)	
 
 def main(): 

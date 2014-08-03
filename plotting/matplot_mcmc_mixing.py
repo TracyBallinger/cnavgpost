@@ -115,8 +115,9 @@ def main(sampledir, outfigure, plot, args):
 	numruns=depevnt.shape[1]-2
 	numiters=depevnt.shape[0]
 	hids=indevnt[:,0]
-	hid1=int(hids[0])
-	binwidth=10 ** (len(list(str(hid1))))
+	hid1=int(indevnt[0,1])
+	binwidth=10 ** (len(list(str(hid1)))-1)
+	sys.stderr.write("binwidth: %d, hid1: %d\n" % (binwidth, hid1))
 	hids=np.fmod(hids, binwidth)
 	if args.simulation: 
 		if args.edges: 
@@ -157,7 +158,7 @@ def main(sampledir, outfigure, plot, args):
 				fig=plt.figure(figsize=(12,15))
 				numplots=5
 			plt.subplot(numplots,1,1)
-			ave_cost=plot_costs(historyScores, range(1,numruns), hid1, hid2, binwidth) 
+			ave_cost=plot_costs(historyScores, range(1,numruns), hids, binwidth) 
 			plt.subplot(numplots,1,2)
 			avesim_evnt=plot_sim_mixing(simevnt, "Events", binwidth)
 			plt.subplot(numplots,1,3)

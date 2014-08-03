@@ -13,7 +13,7 @@ class Event_link:
 			self.label2=data[5]
 			self.numhists=int(data[2])
 			self.likelihood=float(data[3])
-			self.costs=[]
+			#self.costs=[]
 			self.histories=[]
 		elif isinstance(hist_objects, tuple): # NOTE: the intersecthi are the indices of the second object that are in the first (so the indices should be with respect to object b)
 			node1=hist_objects[0]
@@ -25,10 +25,10 @@ class Event_link:
 			intersecthi=hist_objects[2]
 			self.numhists=len(intersecthi) 
 			if self.numhists >0:
-				self.costs=[node2.costs[i] for i in intersecthi]
+				#self.costs=[node2.costs[i] for i in intersecthi]
 				self.histories=[node2.histories[i] for i in intersecthi]
 			else: 
-				self.costs=[]
+				#self.costs=[]
 				self.histories=[]
 			self.likelihood=0
 

@@ -6,7 +6,10 @@ import math
 import copy 
 from braney_lines_module import *
 
-class Segment_history:
+class History: 
+	for 
+
+class SegmentHistory:
 	def __init__(self, myline):
 		if isinstance(myline, str):
 			data=myline.strip().split('\t')
@@ -19,12 +22,13 @@ class Segment_history:
 			else: 
 				self.cnvals=[float(data[3])]
 				self.prevals=[float(data[4])]
+			self.Histories=[]
 			self.cnvals=map(round, self.cnvals, 2)
 			self.likelihood=float(data[5])
 			self.numhists=int(data[6])
 			self.costs=[0] * self.numhists
 			self.histories=range(int(self.numhists))
-		elif isinstance(myline, Braney_seg):
+		elif isinstance(myline, ):
 			self.chr=myline.chr
 			self.start=myline.start
 			self.end=myline.end

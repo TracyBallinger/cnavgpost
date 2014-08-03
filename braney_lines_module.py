@@ -1,4 +1,5 @@
 # Module for history segments output from cnavg pipeline
+
 import sys, os
 import re
 import subprocess
@@ -11,39 +12,48 @@ class Braney_seg:
 			self.adj=False
 			self.seg=True
 			self.chr=data[0]
-			self.chr2=self.chr
 			self.start=int(data[1])
-			self.end=int(data[2])
-			self.cnval=-1 * float(data[3])
-			self.historyid=int(data[5])
-			self.complexity=float(data[10])
-			self.ptrid=data[11]
-			self.preval=float(data[4])
-			self.order=float(data[9])
 			self.st1=None
+			self.chr2=self.chr
+			self.end=int(data[2])
 			self.st2=None
+			self.cnval=-1 * float(data[3])
+			self.preval=float(data[4])
+			self.historyid=int(data[5])
+			self.cycleorder=int(data[8])
+			self.order=int(data[9])
+			self.upperHistCost=int(data[10]) 
+			self.lowerHistCost=int(data[11])
+			self.upperEventCost=int(data[12]) 
+			self.lowerEventCost=int(data[13]) 
+			self.ptrid=data[14]
 		else: # an adjacency line
 			self.adj=True
 			self.seg=False
 			self.chr=data[1]
-			self.chr2=data[4]
 			self.start=int(data[2])
-			self.end=int(data[5])
-			self.cnval=-1 * float(data[7])
-			self.historyid=int(data[9])
-			self.complexity=float(data[14])
-			self.ptrid=data[15]
-			self.preval=float(data[8])
-			self.order=float(data[13])		
 			self.st1=data[3]
+			self.chr2=data[4]
+			self.end=int(data[5])
 			self.st2=data[6]
+			self.cnval=-1 * float(data[7])
+			self.preval=float(data[8])
+			self.historyid=int(data[9])
+			self.cycleorder=int(data[12])
+			self.order=int(data[13])		
+			self.upperHistCost=int(data[14]) 
+			self.lowerHistCost=int(data[15]) 
+			self.upperEventCost=int(data[16]) 
+			self.lowerEventCost=int(data[17]) 
+			self.ptrid=data[18]
+			self.order=float(data[13])		
 		self.order_ends()
 
 	def __str__(self):
 		if self.seg:
-			return "%s\t%d\t%d\t%f\t%f\t%f\t%d\t%f\t%s" % (self.chr, self.start, self.end, self.cnval, self.preval, self.complexity, self.historyid, self.order, self.ptrid)
+			return "%s\t%d\t%d\t%f\t%f\t%d\t0\t0\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n" % (self.chr, self.start, self.end, self.cnval, self.preval, self.historyid, self.cycleorder, self.order, self.upperHistCost, self.lowerHistCost, self.upperEventCost, self.lowerEventCost, self.ptrid)
 		else: 
-			return "A\t%s\t%d\t%s\t%s\t%d\t%s\t%f\t%f\t%f\t%d\t%s" % (self.chr, self.start, self.st1, self.chr2, self.end, self.st2, self.cnval, self.preval, self.complexity, self.historyid, self.ptrid)
+			return "A\t%s\t%d\t%s\t%s\t%d\t%s\t%f\t%f\t%d\t0\t0\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n" % (self.chr, self.start, self.st1, self.chr2, self.end, self.st2, self.cnval, self.preval, self.historyid, self.cycleorder, self.order, self.upperHistCost, self.lowerHistCost, self.upperEventCost, self.lowerEventCost, self.ptrid)
 
 	def __eq__(self, other):
 		vals_to_check=['adj', 'chr','chr2', 'start', 'end', 'st1', 'st2', 'cnval']
@@ -83,12 +93,27 @@ class Braney_seg:
 			(y,z)=(self.start, self.st1)
 			(self.start, self.st1) =(self.end, self.st2)
 			(self.end, self.st2)=(y,z)
+	
+	def flip_ends(self): 
+		(x, y, z) = (self.chr, self.start, self.st1)
+		(self.chr, self.start, self.st1) =(self.chr2, self.end, self.st2)
+		(self.chr2, self.end, self.st2) =(x, y, z)
+		
 
 	def adjacency_cross(self, other): 
 		if ((self.chr == self.chr2 == other.chr == other.chr2) and 
 			(((self.start > other.start and self.start < other.end and self.end > other.end)) or 
 			((self.start < other.start and self.end < other.end and self.end > other.start)))): 
 			return True
+	
+	def connected_to(self, other): 
+		if ((self.chr == other.chr and self.start == other.start) or  
+			(self.chr == other.chr2 and self.start == other.end) or 
+			(self.chr2 == other.chr and self.end == other.start) or 
+			(self.chr2 == other.chr2 and self.end == other.end)): 
+			return True
+		else: 
+			return False
 
 def compute_likelihood(costs, totp): 
 	mysum=0

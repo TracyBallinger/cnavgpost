@@ -1,2 +1,6 @@
 # ignore compiled python files 
 *.pyc
+# ignore plotting scripts and data files for testing the plotting
+plotting/
+# also ignore the old directory because these are old useless scripts 
+old/

@@ -70,11 +70,12 @@ def create_gene_events_hash(events, annotations):
 	for i in xrange(len(events)):
 		event=events[i] 
 		genelist=annotations[event.id]
-		for gene in genelist: 
-			if gene in geneEvents.keys(): 
-				geneEvents[gene].append(i)
-			else: 
-				geneEvents[gene] = [i]
+		if genelist[0] != "None":
+			for gene in genelist: 
+				if gene in geneEvents.keys(): 
+					geneEvents[gene].append(i)
+				else: 
+					geneEvents[gene] = [i]
 	return geneEvents
 
 def likelihood_score_gene_pairs(allevent, annotations, tabixfn): 

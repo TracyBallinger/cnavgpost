@@ -14,6 +14,13 @@ class SimData:
 		sys.stderr.write("loading %s\n" % simdir)
 		self.datfile=os.path.join(simdir, "%s.dat" % edgeorevent) 
 		self.breaks=os.path.join(simdir, "breakpoints.txt")
+		self.histstats=os.path.join(simdir, "historystats.txt")
+		historyScores=np.loadtxt(self.histstats, dtype=int)
+		self.truescore=np.mean(historyScores[0,1:3])
+		self.avescore=np.mean(historyScores[1000:,1:3])
+		self.minscore=np.min(np.mean(historyScores[1000:,1:3], axis=1))
+		self.costdiff=self.avescore-self.truescore
+#		sys.stderr.write("truescore: %f, simscore: %f, costdiff: %f\n" % (self.truescore, self.avescore, self.costdiff))
 		nodes=np.loadtxt(self.breaks, usecols=(2,3))
 		self.truenodes=sum(nodes[:,1]>0)
 		self.totalnodes=nodes.shape[0]
@@ -41,9 +48,6 @@ class SimData:
 			FP = mydat[:,t] ==0
 			TN = mydat[:,t] == 2 #mydat[:,t] ==0
 			FN = mydat[:,t] ==-1
-		#sys.stderr.write("TP: %s\n" % str(TP))
-		#sys.stderr.write("FP: %s\n" % str(FP))
-		#sys.stderr.write("FN: %s\n" % str(FN))
 		for i in xrange(len(eventtypes)):
 			type =eventtypes[i]
 			if type=='any': 
@@ -56,9 +60,6 @@ class SimData:
 				self.FP[i] = sum(FP & (myetypes == type))
 				self.TN[i] = sum(TN & (myetypes == type))
 				self.FN[i] = sum(FN & (myetypes == type))
-		#sys.stderr.write("TP: %s\n" % str(self.TP))
-		#sys.stderr.write("FP: %s\n" % str(self.FP))
-		#sys.stderr.write("FN: %s\n" % str(self.FN))
 		
 def splitCommaToFloats(s): 
 	return (map(float, s.split(',')))
@@ -69,6 +70,10 @@ def get_accuracy_values(mysimulations, edgeorevent, eventtypes, numsims, pvalcut
 	nodecounts=[]
 	blocksarray=[]
 	simidarray=[]
+	costdiffs=[]
+	avescores=[]
+	minscores=[]
+	truescores=[]
 	for i in xrange(len(mysimulations)): 
 		line=mysimulations[i]
 		if len(line.strip().split('\t'))==3:
@@ -79,11 +84,19 @@ def get_accuracy_values(mysimulations, edgeorevent, eventtypes, numsims, pvalcut
 		datalist.append(mysimdata)
 		nodecounts.append(mysimdata.totalnodes)
 		truenodecounts.append(mysimdata.truenodes)
+		costdiffs.append(mysimdata.costdiff)
+		avescores.append(mysimdata.avescore)
+		minscores.append(mysimdata.minscore)
+		truescores.append(mysimdata.truescore)
 		blocksarray.append(blocks)
 		simidarray.append(simid)
 	myaccuracies={}
 	myaccuracies['totalnodes']=nodecounts
 	myaccuracies['truenodes']=truenodecounts
+	myaccuracies['costdiffs']=costdiffs
+	myaccuracies['avescores']=avescores
+	myaccuracies['minscores']=minscores
+	myaccuracies['truescores']=truescores
 	myaccuracies['blocks']=blocksarray
 	myaccuracies['simids']=simidarray
 	ntypes=len(eventtypes)
@@ -107,19 +120,20 @@ def get_accuracy_values(mysimulations, edgeorevent, eventtypes, numsims, pvalcut
 			data=datalist[i]	
 			truecount[i]=data.TP[type]+data.FN[type]
 			total[i]= truecount[i]+data.TN[type]+data.FP[type]
-			sys.stderr.write("i: %d, truecount: %d, total %d\n" % (i, truecount[i], total[i]))
-			if data.TP[type] >0: 
-				f1score[i]=float(2*data.TP[type])/float(2*data.TP[type]+data.FP[type] + data.FN[type])
-				precision[i]=float(data.TP[type])/float(data.TP[type]+data.FP[type])
+			f1score[i]=float(2*data.TP[type])/float(2*data.TP[type]+data.FP[type] + data.FN[type])
+			precision[i]=float(data.TP[type])/float(data.TP[type]+data.FP[type])
+			if ((data.TP[type] + data.FN[type]) >0):	
 				recall[i]=float(data.TP[type])/float(data.TP[type]+data.FN[type])
-				accuracy[i]=float(data.TP[type])/float(total[i])
-				adjaccuracy[i]=float(data.TP[type]+data.TN[type])/float(total[i])
-			else: 
-				f1score[i]=-1
-				precision[i]=-1
-				recall[i]=-1
-				accuracy[i]=-1
-				adjaccuracy[i]=-1
+			else:
+				recall[i]=0
+			adjaccuracy[i]=float(data.TP[type])/float(total[i])
+			accuracy[i]=float(data.TP[type]+data.TN[type])/float(total[i])
+			#else: 
+			#	f1score[i]=-1
+			#	precision[i]=-1
+			#	recall[i]=-1
+			#	accuracy[i]=-1
+			#	adjaccuracy[i]=-1
 		truecounts[type]=truecount
 		totalcounts[type]=total
 		f1scores[type]=f1score
@@ -133,7 +147,7 @@ def get_accuracy_values(mysimulations, edgeorevent, eventtypes, numsims, pvalcut
 	myaccuracies["precision"]=precisions
 	myaccuracies["recall"]=recalls
 	myaccuracies["accuracy"]=accuracies
-	myaccuracies["adjaccuracy"]=accuracies
+	myaccuracies["adjaccuracy"]=adjaccuracies
 	return(myaccuracies)
 
 def plot_myaccuracies(ykeys, xkey, types, xlimit, edgeorevent, outname, myaccuracies): 
@@ -212,7 +226,7 @@ def main(simulations, edgeorevent, eventtypes, plotfn, datafn, xlimit, xaxis, pv
 			i=0	
 			for key in myaccuracies.keys():
 				if key != "simids": 
-					if key in ["truenodes", "totalnodes", "blocks"]:
+					if key in ["truenodes", "totalnodes", "blocks", "costdiffs", "truescores", "avescores", "minscores"]:
 						vals=myaccuracies[key]
 					else: 
 						vals=myaccuracies[key][type]

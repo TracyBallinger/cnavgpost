@@ -5,6 +5,8 @@ import pysam, pickle
 import re
 
 def merge_segments_into_regions(event): 
+	if len(event.segs) ==0: 
+		event.make_segs_from_str()
 	mylocs=[]
 	for seg in event.segs: 
 		if seg.adj: 
