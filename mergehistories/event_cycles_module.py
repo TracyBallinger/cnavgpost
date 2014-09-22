@@ -9,7 +9,7 @@ import copy
 from collections import Counter
 import numpy as np
 import pysam, gzip
-from braney_lines_module import * 
+from cnavgpost.mergehistories.braney_lines_module import * 
 
 Global_BINWIDTH=10000
 Global_MAXCOST=300 

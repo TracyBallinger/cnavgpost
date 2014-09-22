@@ -1,19 +1,19 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python 
 
 ''' 
 Analysis on CN-AVG output to test how well histories are being sampled across runs 
 ''' 
 import os, sys
 import re
-import subprocess, pickle, glob
+import subprocess, cpickle, glob
 from jobTree.scriptTree.target import Target
 from jobTree.scriptTree.stack import Stack 
 from optparse import OptionGroup
 from optparse import OptionParser
 from sonLib.bioio import logger
 import numpy as np
-import get_history_distances_between_mcmc_steps as mcmcdist 
-import event_cycles_module as histseg 
+import cnavgpost.diagnostics.get_history_distances_between_mcmc_steps as mcmcdist 
+import cnavgpost.mergehistories.event_cycles_module as histseg 
 
 
 #======== MAIN COMMAND ============

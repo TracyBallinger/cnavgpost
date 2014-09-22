@@ -4,7 +4,7 @@
 
 import sys, os
 import copy, cpickle 
-import event_cycles_module as histseg
+import cnavgpost.mergehistories.event_cycles_module as histseg
 import argparse
 import numpy as np
 bindir="/inside/home/tballing/cnavg-study/cnavgmbin"

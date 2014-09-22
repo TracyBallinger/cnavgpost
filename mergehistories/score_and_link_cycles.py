@@ -1,9 +1,9 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python
 
 import sys, os
-import event_cycles_module as histseg 
-from history_node_links_module import * 
-import pickle
+import cnavgpost.mergehistories.event_cycles_module as histseg 
+from cnavgpost.mergehistories.history_node_links_module import * 
+import cpickle
 
 def add_event_link_options(parser): 
 	parser.add_argument('--cnavg', help='the CN-AVG output directory for a sample')

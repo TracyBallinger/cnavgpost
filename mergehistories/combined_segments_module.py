@@ -4,8 +4,8 @@ import re
 import numpy as np
 import math
 import copy 
-from braney_lines_module import *
-from history_segments_module import Segment_history
+from cnavgpost.mergehistories.braney_lines_module import *
+from cnavgpost.mergehistories.history_segments_module import Segment_history
 
 class Combined_braneyseg(Segment_history):
 	def __init__(self, myline):

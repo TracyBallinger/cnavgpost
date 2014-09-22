@@ -3,8 +3,8 @@
 #!/usr/bin/env python 
 
 import os, sys
-import event_cycles_module as histseg
-import pickle
+import cnavgpost.mergehistories.event_cycles_module as histseg
+import cpickle
 import argparse
 import numpy as np
 import re

@@ -1,7 +1,7 @@
 # Module for linking events or segments, etc. according to order and co-occurence within histories 
 
 import sys, os 
-from braney_lines_module import compute_likelihood
+from cnavgpost.mergehistories.braney_lines_module import compute_likelihood
 
 class Event_link: 
 	def __init__(self, hist_objects): 

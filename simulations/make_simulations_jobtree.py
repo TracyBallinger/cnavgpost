@@ -1,4 +1,4 @@
-#!/inside/home/common/bin/python2.7 
+#!/usr/bin/env python
 
 from jobTree.scriptTree.target import Target
 from jobTree.scriptTree.stack import Stack

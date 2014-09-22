@@ -1,4 +1,6 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python
+
+# This uses jobTree (https://github.com/benedictpaten/jobTree) to run analysis on the CNAVG output.  
 
 from jobTree.scriptTree.target import Target
 from jobTree.scriptTree.stack import Stack
@@ -12,14 +14,13 @@ import argparse
 import numpy as np
 import pysam 
 
-from score_edges_within_pevents import *
-from score_and_link_cycles import *
-import event_cycles_module as histseg
-import analyze_simulation
-import annotate_events
-import histories_to_gene_orders
-import mcmc_mixing_analysis_jobtree as mcmcjobtree
-
+from cnavgpost.mergehistories.score_edges_within_pevents import *
+from cnavgpost.mergehistories.score_and_link_cycles import *
+import cnavgpost.mergehistories.event_cycles_module as histseg
+import cnavgpost.simulations.analyze_simulation as analyze_simulation
+import cnavgpost.genehistory.annotate_events as annotate_events
+import cnavgpost.genehistory.histories_to_gene_orders as histories_to_gene_orders
+import cnavgpost.diagnostics.mcmc_mixing_analysis_jobtree as mcmcjobtree
 
 #======= Main Setup ===================
 class Setup(Target):
@@ -88,6 +89,8 @@ class Setup(Target):
 			self.addChildTarget(CreateAnnotationFile(self.events, opts.tabixfile, annotationfile))
 		
 		if opts.mcmcmix: 	
+			mcmcdir=os.path.join(outputdir, "mcmcdata")
+			mcmcdat=os.path.join(mcmcdir, "edge_counts.dat")
 			mcmcdir=os.path.join(outputdir, "mcmcdata")
 			mcmcdat=os.path.join(mcmcdir, "edge_counts.dat")
 			if not os.path.exists(mcmcdir) or not os.path.exists(mcmcdat):
@@ -256,8 +259,6 @@ def add_analysis_options(parser):
 	group.add_option('--links', dest="links", default=False, action="store_true", help="create or rewrite .links file")
 	group.add_option('--ann', dest="ann", default=False, action="store_true", help="create or rewrite .annotation file")
 	group.add_option('--tabixfile', dest="tabixfile", help="The tabix file containing gene annotations you are interested in.")
-	group.add_option('--generank', dest="generank", default=False, action="store_true", help="do gene ordering analysis.")
-	group.add_option('--mcmcmix', dest="mcmcmix", default=False, action="store_true", help="do mcmc analysis.")
 	group.add_option('--simulation', dest="simulation", default=False, action="store_true", help="do simulation analysis.")
 	group.add_option('--trueID', dest="trueID", default=0, help="The history id of the true simulated history.", type="int")
 	group.add_option('--binwidth', dest='binwidth', help='the multiplier between history ids of independent runs', default=histseg.Global_BINWIDTH, type="int")

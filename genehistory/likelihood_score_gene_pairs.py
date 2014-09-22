@@ -1,7 +1,7 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python 
 import sys, os
-import event_cycles_module as histseg
-import pickle, pysam 
+import cnavgpost.mergehistories.event_cycles_module as histseg
+import cpickle, pysam 
 
 class GenePair: 
 	def __init__(self, geneA, geneB, eventsA, eventsB, annotations):

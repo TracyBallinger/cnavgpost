@@ -1,9 +1,9 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python
 
 import sys, os
-import pickle
-import likelihood_score_gene_pairs as genemod
-import event_cycles_module as histseg
+import cpickle
+import cnavgpost.genehistory.likelihood_score_gene_pairs as genemod
+import cnavgpost.mergehistories.event_cycles_module as histseg
 
 def main(allevents, annotationfn, totalp, outputfh): 
 	annotations=genemod.read_in_annotations(annotationfn)

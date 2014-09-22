@@ -1,4 +1,4 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python 
 
 from jobTree.scriptTree.target import Target
 from jobTree.scriptTree.stack import Stack
@@ -7,7 +7,8 @@ from optparse import OptionParser
 from sonLib.bioio import logger
 from sonLib.bioio import system
 import os, sys
-import mcmc_mixing_analysis_jobtree as mcmcjobtree
+
+import cnavgmbin.diagnostics.mcmc_mixing_analysis_jobtree as mcmcjobtree
 import cnavg_post_analysis_jobtree as postjobtree
 
 class Setup(Target): 
@@ -30,7 +31,7 @@ class Setup(Target):
 	
 
 def main(): 
-	parser = OptionParser(usage = "run_cn-avg_post_analysis_jobtree.py --samplelist samplelist.txt")
+	parser = OptionParser(usage = "note: This currently doesn't work.  run_cn-avg_post_analysis_jobtree.py --samplelist samplelist.txt")
 	parser.add_option("--samplelist", dest="samplelist", help="The list of CNAVG outputs and sample ids. Should have the form <directory><ID>")
 	postjobtree.add_analysis_options(parser)
 	mcmcjobtree.add_mcmc_options(parser)

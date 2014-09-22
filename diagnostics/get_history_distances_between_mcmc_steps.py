@@ -1,7 +1,8 @@
-#!/inside/home/common/bin/python2.7 
+#!/usr/bin/env python 
+
 import sys, os 
 import pickle 
-import event_cycles_module as histseg
+import cnavgpost.mergehistories.event_cycles_module as histseg
 
 def get_historyid_vs_not_eventcounts(refhistoryid, events, outfh): 
 	refevents=0
