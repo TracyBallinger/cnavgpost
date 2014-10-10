@@ -1,7 +1,7 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python 
 import os, sys
-import event_cycles_module as histseg
-import pickle
+import cnavgpost.mergehistories.event_cycles_module as histseg
+import cPickle as pickle
 import argparse
 
 if __name__ == '__main__': 
