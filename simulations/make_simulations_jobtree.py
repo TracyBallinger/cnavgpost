@@ -6,14 +6,14 @@ from optparse import OptionGroup
 from optparse import OptionParser
 from sonLib.bioio import logger
 
-import subprocess, os 
+import subprocess, os, sys 
 
 import cnavg.simulator.simulator
 import cnavg.cactus.oriented
 import cnavg.cactus.graph
 import cPickle as pickle
 
-CNAVG_HOMEEXE="/inside/home/tballing/bin/"
+CNAVG_HOMEEXE="/home/tballing/bin/"
 
 class SetupSim(Target):
 	def __init__(self, options):
@@ -48,7 +48,7 @@ class RunCnavgSimulation(Target):
 	
 	def run(self):
 		opts=self.options 
-		simoutdir=os.path.join(self.outputdir, "sim%d.%d.%d.%d" % (self.blocks, self.events, opts.id, self.i))
+		simoutdir=os.path.join(os.path.abspath(self.outputdir), "sim%d.%d.%d.%d" % (self.blocks, self.events, opts.id, self.i))
 		subprocess.call("mkdir -p %s" % simoutdir, shell=True)
 		cwd=os.getcwd()
 		os.chdir(simoutdir)
@@ -59,7 +59,7 @@ class RunCnavgSimulation(Target):
 		A = H.avg()
 		C = cnavg.cactus.graph.Cactus(A)
 		G = cnavg.cactus.oriented.OrientedCactus(C)
-
+		
 		file = open('true.braney', 'w')
 		file.write(H.braneyText(G))
 		file.close()
@@ -84,9 +84,13 @@ class RunCnavgForSim(Target):
 		os.chdir(self.simoutdir)
 		opts=self.options
 		if self.options.integer: 
-			subprocess.call("%s/cn-avg.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True)
+			self.logToMaster("running:\n%s/cn-avg.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) !=0: 
+				sys.exit("cn-avg.py did not complete.\n")
 		else: 
-			subprocess.call("%s/cn-avg.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True)
+			self.logToMaster("running:\n%s/cn-avg.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) != 0: 
+				sys.exit("cn-avg.py did not complete.\n")
 		os.chdir(cwd)
 
 def add_simulation_options(parser): 

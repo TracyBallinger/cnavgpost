@@ -9,14 +9,17 @@ from optparse import OptionParser
 from sonLib.bioio import logger
 from sonLib.bioio import system
 
-import subprocess
+import subprocess, os
 import argparse
 import numpy as np
 import pysam 
+import re, glob
+import cPickle as pickle 
 
 from cnavgpost.mergehistories.score_edges_within_pevents import *
 from cnavgpost.mergehistories.score_and_link_cycles import *
 import cnavgpost.mergehistories.event_cycles_module as histseg
+import cnavgpost.mergehistories.create_pevnts_file_jobtree as pevntsjobtree 
 import cnavgpost.simulations.analyze_simulation as analyze_simulation
 import cnavgpost.genehistory.annotate_events as annotate_events
 import cnavgpost.genehistory.histories_to_gene_orders as histories_to_gene_orders
@@ -39,16 +42,22 @@ class Setup(Target):
 		sampleid=opts.sampleid
 		outputdir=opts.outputdir
 		subprocess.call("mkdir -p %s" % outputdir, shell=True)
+
 		historystatsfile=os.path.join(outputdir, "historystats.txt")
+		if not os.path.exists(historystatsfile): 
+			logger.info("historystatsfile: %s" % historystatsfile)
+			CombineHistoryStatsfiles(opts, historystatsfile).run()
+		
+		self.historyScores=np.loadtxt(historystatsfile, dtype=int)
+		self.totalp=histseg.compute_likelihood_histories(self.historyScores[:,0], self.historyScores)
+		logger.info("Global_BINWIDTH: %d" % histseg.Global_BINWIDTH)
+		logger.info("totalp is %s" % str(self.totalp))	
+
 		pevntsfile=os.path.join(outputdir, opts.sampleid + ".pevnts")
 		if opts.pevnts or not os.path.exists(pevntsfile): 
 			logger.info("pevntsfile: %s" % pevntsfile)
-			CreatePevntsFile(pevntsfile, historystatsfile, opts).run()
-		self.historyScores=np.loadtxt(historystatsfile, dtype=int)
-		logger.info("Global_BINWIDTH: %d" % histseg.Global_BINWIDTH)
-		self.totalp=histseg.compute_likelihood_histories(self.historyScores[:,0], self.historyScores)
-		logger.info("totalp is %s" % str(self.totalp))	
-		
+			pevntsjobtree.CreatePevntsFile(pevntsfile, self.historyScores, self.totalp, opts).run()
+
 		pedgesfile=os.path.join(outputdir, sampleid + ".pedgs")
 		if opts.pedges or not os.path.exists(pedgesfile):
 			logger.info("pedgesfile: %s" % pedgesfile)
@@ -73,7 +82,6 @@ class Setup(Target):
 				(n, t) = breaklocs[loc]
 				(n2, t2) = breaklocs2[loc]
 				breaksfh.write("%s\t%d\t%d\t%d\t%d\n" % (loc, n, t, n2, t2))	
-	
 		annotationfile=os.path.join(outputdir, sampleid + ".ann")
 		generankfile=os.path.join(outputdir, sampleid + ".gnrank")
 		if opts.generank and not os.path.exists(generankfile): 
@@ -127,32 +135,25 @@ class CreateGeneRankFile(Target):
 		histories_to_gene_orders.main(self.events, self.annotationfile, self.totalp, open(self.generankfile, 'w')) 	
 
 #  This can be gotten rid of.... 
-class CombineCosts(Target):
-	def __init__(self, cnavgout, costsdat, numruns):
+class CombineHistoryStatsfiles(Target):
+	def __init__(self, options, historystatsfile):
 		Target.__init__(self)
-		self.cnavgout=cnavgout
-		self.costsdat=costsdat
-		self.numruns=numruns
+		self.options=options
+		self.historystatsfile=historystatsfile
+		self.cnavgout=options.cnavgout
 
 	def run(self):
-		mydata=np.array([], dtype=int)
-		for i in xrange(self.numruns+1):
-			statsfile=os.path.join(self.cnavgout, "HISTORY_STATS_%d" % i)
-			if os.path.exists(statsfile): 
-				results=subprocess.check_output('cut -f1 %s' % statsfile, shell=True)
-				if mydata.size==0:
-					mydata=np.fromstring(results, sep="\t")
-				else:
-					mydata=np.vstack((mydata, np.fromstring(results, sep="\t")))
-		truefile=os.path.join(self.cnavgout, "true.braney")
-		if os.path.exists(truefile): 
-			for line in open(truefile, 'r'):
-				if line.strip(): 
-					dat=line.strip().split('\t')
-					truecost=int(dat[len(dat)-2])
-			x=truecost * np.ones(mydata.shape[1])
-			mydata=np.vstack((x, mydata)) 
-		np.savetxt(self.costsdat,np.transpose(mydata), delimiter="\t", fmt="%d")
+		opts=self.options
+		if opts.simulation:
+			truefile=os.path.join(opts.cnavgout, "true.braney")
+			truehist=os.path.join(opts.cnavgout, "HISTORIES_0.braney") 
+			subprocess.call("grep -v ^$ %s | gzip > %s" % (truefile, truehist), shell=True)
+			make_STATS_from_truebraney(truefile, os.path.join(opts.cnavgout, "HISTORY_STATS_0"))
+		statsfiles=glob.glob(self.cnavgout+"/"+"HISTORY_STATS*")
+		sys.stderr.write("statsfiles: %s\n" % (str(statsfiles)))
+		historyScores=histseg.combine_history_statsfiles(self.cnavgout)
+		np.savetxt(self.historystatsfile, historyScores, fmt='%d', delimiter='\t')	
+
 
 class SimAnalysisJob(Target): 
 	def __init__(self, peventsfile, trueID, historyScores, outname, outputdir, binwidth): 
@@ -164,35 +165,10 @@ class SimAnalysisJob(Target):
 		self.outputdir=outputdir
 		self.binwidth=binwidth
 
-	def run(self): 
-		datout=open(os.path.join(self.outputdir, "%s.dat" % self.outname), 'w')
-		statout=open(os.path.join(self.outputdir, "%s.stats" % self.outname), 'w')
-		#breaksfile=open(os.path.join(self.outputdir, "breakpoints.txt"), 'w')
 		breaksfile=""
 		histseg.Global_BINWIDTH=self.binwidth
 		analyze_simulation.analyze_simulation(self.events, self.trueID, self.historyScores, datout, statout, breaksfile)
 
-class CreatePevntsFile(Target): 
-	def __init__(self, pevntsfile, historystatsfile, options): 
-		Target.__init__(self)
-		self.options=options
-		self.pevntsfile=pevntsfile
-		self.historystatsfile=historystatsfile
-	
-	def run(self):
-		self.logToMaster("CreatePevntsFile\n") 
-		opts=self.options
-		if opts.simulation:
-			truefile=os.path.join(opts.cnavgout, "true.braney")
-			truehist=os.path.join(opts.cnavgout, "HISTORIES_0.braney") 
-			subprocess.call("grep -v ^$ %s | gzip > %s" % (truefile, truehist), shell=True)
-			make_STATS_from_truebraney(truefile, os.path.join(opts.cnavgout, "HISTORY_STATS_0"))
-		historyScores=histseg.combine_history_statsfiles(opts.cnavgout)
-		np.savetxt(self.historystatsfile, historyScores, fmt='%d', delimiter='\t')	
-		totalp=histseg.compute_likelihood_histories(historyScores[:,0], historyScores)
-		events=histseg.get_events_from_cnavgdir(opts.cnavgout, historyScores, totalp)
-		pickle.dump(events, open(self.pevntsfile, 'wb'), pickle.HIGHEST_PROTOCOL)
-		
 def make_STATS_from_truebraney(truefile, statsfn):
 	cost=subprocess.check_output("grep ^A %s | head -1 | cut -f15,16" % (truefile), shell=True)
 	costs=cost.strip().split()
@@ -202,7 +178,7 @@ def make_STATS_from_truebraney(truefile, statsfn):
 	medianLen=0
 	maxLen=0
 	fout=open(statsfn, 'w')
-	fout.write("(%s, %s)\t%d\t%s\t%d\t%d\n" % (costs[0], costs[1], errorcost, length, medianLen, maxLen))
+	fout.write("%s\t%s\t%d\t%s\t%d\t%d\n" % (costs[0], costs[1], errorcost, length, medianLen, maxLen))
 	fout.close()
 
 class CreateLinksFile(Target): 

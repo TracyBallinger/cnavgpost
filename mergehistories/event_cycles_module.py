@@ -2,10 +2,11 @@
 # Events are equivalent if they have identical coordinates across all segments and adjacencies and have the same CN value.  Basically, it has to be the same graph structure with the same Copy number change (The CN will be an integer).
 
 import sys, os
-import re, glob
+import re, glob, subprocess
 import itertools 
 import math 
 import copy
+import cPickle as pickle 
 from collections import Counter
 import numpy as np
 import pysam, gzip
@@ -526,7 +527,6 @@ def split_off_duplicate(event):
 		return []
 
 def unique_c_events_sorted_list(eventslist): 
-	sys.stderr.write("len(eventslist) %d\n" % (len(eventslist)))
 	unique_events=[]
 	eventA=eventslist[0]
 	for eventB in eventslist[1:]:
@@ -551,7 +551,7 @@ def make_events_from_braneyfn(braneyfn):
 	histcount=0
 	for braneyline in braneyf: 
 		if braneyline.strip() != '':
-			sys.stderr.write("length of eventlines: %d\n " % len(eventlines))
+#			sys.stderr.write("length of eventlines: %d\n " % len(eventlines))
 			braneyseg=Braney_seg(braneyline)
 			if eventorder==-1: 
 				eventorder=braneyseg.order #the order is unique within but not between histories
@@ -564,7 +564,7 @@ def make_events_from_braneyfn(braneyfn):
 					histcount +=1
 					peventcount=eventcount
 					eventcount=0
-				sys.stderr.write("making event %d with %d lines:\n" % (eventorder, len(eventlines)))
+#				sys.stderr.write("making event %d with %d lines:\n" % (eventorder, len(eventlines)))
 				myevent=Event(eventlines)
 				myevent.make_segstr()
 				eventcount+=1
@@ -599,11 +599,9 @@ def get_events_from_cnavgdir(cnavgdir, historyScores, totalp=0):
 				evnt.histories[i] = evnt.histories[i] + sim*Global_BINWIDTH
 			(idhist, order) = map(int, evnt.id.split('.'))
 			evnt.id = "%d.%d" % (idhist+(sim*Global_BINWIDTH), order)
-		allevents+=events
-    # do a final merge of events across different simulations
-	sortedevents=sorted(allevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))
-	finalevents=unique_c_events_sorted_list(sortedevents)
-	sys.stderr.write("number of finalevents: %d, sortedevents: %d\n" % (len(finalevents), len(sortedevents)))
+		sortedevents=sorted(allevents+events, key=lambda x:(x.segstr, x.cnval, x.prevals[0]))
+		allevents=unique_c_events_sorted_list(sortedevents) 
+	finalevents=allevents
 	# check that the event doesn't need to be split again because it happens twice in some histories
 	splitoffs=get_split_offs(finalevents)
 	finalevents+=splitoffs
@@ -616,6 +614,22 @@ def get_events_from_cnavgdir(cnavgdir, historyScores, totalp=0):
 		#evnt.trim()
 	return finalevents
 
+def merge_pevnts_files(pevntsfiles, outputfile, historyScores, totalp): 
+	allevents=pickle.load(open(pevntsfiles[0], 'rb'))
+	for pevntsfile in pevntsfiles[1:]:
+		addinevents=pickle.load(open(pevntsfile, 'rb'))
+		allevents=unique_c_events_sorted_list(sorted(allevents+addinevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0])))
+		sys.stderr.write("addinevents %d, allevents: %d\n" % (len(addinevents), len(allevents)))
+	splitoffs=get_split_offs(allevents)
+	sys.stderr.write("There are %d splitoffs\n" % len(splitoffs))
+	allevents+=splitoffs
+	for evnt in allevents:
+		evnt.update(historyScores)
+		evnt.likelihood=compute_likelihood_histories(evnt.histories, historyScores, totalp)
+		evnt.trim()
+	#return(allevents)
+	pickle.dump(allevents, open(outputfile, 'wb'), pickle.HIGHEST_PROTOCOL)
+
 def combine_history_statsfiles(cnavgdir): 
 	statsfiles=glob.glob(cnavgdir+"/"+"HISTORY_STATS*")
 	sys.stderr.write("statsfiles: %s\n" % (str(statsfiles)))
@@ -625,12 +639,13 @@ def combine_history_statsfiles(cnavgdir):
 	for statsfile in statsfiles:
 		sim=int(re.match(".*HISTORY_STATS_(\d+)", statsfile).group(1))
 		mysims.append(sim)
-		historystats=np.fromregex(statsfile, r"\((\d+), (\d+)\)\t(\d+)\t(\d+)\t(\d+)\t(\d+)", dtype=int) 
+		historystats=np.loadtxt(statsfile, dtype=int) 
 		runlens.append(historystats.shape[0])
 	runlen=max(runlens)
 	for sim in mysims:
 		statsfile=os.path.join(cnavgdir, "HISTORY_STATS_%d" % sim)
-		historystats=np.fromregex(statsfile, r"\((\d+), (\d+)\)\t(\d+)\t(\d+)\t(\d+)\t(\d+)", dtype=int) 
+		historystats=np.loadtxt(statsfile, dtype=int) 
+		sys.stderr.write("dim of historystats is %s\n" % str(historystats.shape))
 		if mystats.size==0: 
 			mystats=np.zeros(((max(mysims)+1)*runlen, historystats.shape[1]+1), dtype=int)
 		hids=np.array(range(historystats.shape[0]))+ sim*Global_BINWIDTH
@@ -639,7 +654,7 @@ def combine_history_statsfiles(cnavgdir):
 	return mystats
 
 def get_historyScores(statsfile): 
-	historystats=np.fromregex(statsfile, r"\((\d+), (\d+)\)\t(\d+)\t(\d+)\t(\d+)\t(\d+)", dtype=int)
+	historystats=np.fromregex(statsfile, statsFileRegex, dtype=int)
 	hids=np.array(range(historystats.shape[0]))
 	historyScores=np.hstack((np.atleast_2d(hids).T, historystats))
 	return historyScores
@@ -732,8 +747,6 @@ def compute_lscore_over_time(events, historyScores, run, outputfn):
 		myeventids.append(event.id)
 		sys.stderr.write("working on event: %s\n" % (event.id)) 
 		myruncounts.append(event.numsims)
-		lscores=np.zeros(runlen)
-		hids=np.array(event.histories)
 		myhids=hids[np.where((hids<= hidmax) & (hids>=hidmin))]
 		myhis = np.fmod(hids, Global_BINWIDTH)
 		for i in xrange(myhis.size): 

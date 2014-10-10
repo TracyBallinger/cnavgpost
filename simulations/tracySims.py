@@ -7,8 +7,8 @@ import cPickle as pickle
 import argparse 
 
 parser=argparse.ArgumentParser()
-parser.add_argument('blocks', help='the number of blocks in the genome', type=int)
-parser.add_argument('events', help='the number of rearrangments to put in the history', type=int)
+parser.add_argument('blocks', help='the number of blocks in the genome', type=int, default=100)
+parser.add_argument('events', help='the number of rearrangments to put in the history', type=int, default=10)
 args=parser.parse_args()
 
 H = cnavg.simulator.simulator.RandomCancerHistory(args.blocks, args.events, indel_length=10) #20, 15)

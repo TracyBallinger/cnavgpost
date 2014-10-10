@@ -5,7 +5,8 @@ Analysis on CN-AVG output to test how well histories are being sampled across ru
 ''' 
 import os, sys
 import re
-import subprocess, cpickle, glob
+import subprocess, glob
+import cPickle as pickle
 from jobTree.scriptTree.target import Target
 from jobTree.scriptTree.stack import Stack 
 from optparse import OptionGroup

@@ -3,7 +3,7 @@
 import sys, os
 import cnavgpost.mergehistories.event_cycles_module as histseg 
 from cnavgpost.mergehistories.history_node_links_module import * 
-import cpickle
+import cPickle as pickle
 
 def add_event_link_options(parser): 
 	parser.add_argument('--cnavg', help='the CN-AVG output directory for a sample')

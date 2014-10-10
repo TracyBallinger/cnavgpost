@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import sys, os
 import cnavgpost.mergehistories.event_cycles_module as histseg
-import pysam, cpickle
+import pysam 
+import cPickle as pickle
 import re
 
 def merge_segments_into_regions(event): 

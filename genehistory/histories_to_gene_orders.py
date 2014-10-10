@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys, os
-import cpickle
+import cPickle as pickle
 import cnavgpost.genehistory.likelihood_score_gene_pairs as genemod
 import cnavgpost.mergehistories.event_cycles_module as histseg
 

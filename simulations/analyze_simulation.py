@@ -4,7 +4,7 @@
 
 import os, sys
 import cnavgpost.mergehistories.event_cycles_module as histseg
-import cpickle
+import cPickle as pickle
 import argparse
 import numpy as np
 import re
