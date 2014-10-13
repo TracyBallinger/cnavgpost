@@ -644,7 +644,7 @@ def combine_history_statsfiles(cnavgdir):
 	runlen=max(runlens)
 	for sim in mysims:
 		statsfile=os.path.join(cnavgdir, "HISTORY_STATS_%d" % sim)
-		historystats=np.loadtxt(statsfile, dtype=int) 
+		historystats=np.loadtxt(statsfile, dtype=int, ndmin=2) 
 		sys.stderr.write("dim of historystats is %s\n" % str(historystats.shape))
 		if mystats.size==0: 
 			mystats=np.zeros(((max(mysims)+1)*runlen, historystats.shape[1]+1), dtype=int)

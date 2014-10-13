@@ -164,7 +164,11 @@ class SimAnalysisJob(Target):
 		self.historyScores=historyScores
 		self.outputdir=outputdir
 		self.binwidth=binwidth
-
+	
+	def run(self): 
+		datout=open(os.path.join(self.outputdir, "%s.dat" % self.outname), 'w')
+		statout=open(os.path.join(self.outputdir, "%s.stats" % self.outname), 'w')
+		#breaksfile=open(os.path.join(self.outputdir, "breakpoints.txt"), 'w')
 		breaksfile=""
 		histseg.Global_BINWIDTH=self.binwidth
 		analyze_simulation.analyze_simulation(self.events, self.trueID, self.historyScores, datout, statout, breaksfile)
@@ -230,17 +234,19 @@ class CreateAnnotationFile(Target):
 
 def add_analysis_options(parser): 
 	group=OptionGroup(parser, "CNAVG Post Analysis Options")
+	group.add_option("--sampleid", dest="sampleid", help="the sampleid")
+	group.add_option("--cnavgout", dest="cnavgout", help="The CN-AVG output directory for the sample")
+	group.add_option("--outputdir", dest="outputdir", help="The output directory for the analysis")
+	group.add_option('--binwidth', dest='binwidth', help='the multiplier between history ids of independent runs', default=histseg.Global_BINWIDTH, type="int")
 	group.add_option('--pevnts', dest="pevnts", default=False, action="store_true", help="create or rewrite .pevnts file")
 	group.add_option('--pedges', dest="pedges", default=False, action="store_true", help="create or rewrite .pedges file")
 	group.add_option('--links', dest="links", default=False, action="store_true", help="create or rewrite .links file")
+	group.add_option('--mcmcmix', dest="mcmcmix", default=False, action="store_true", help="do analysis to look at the mixing across and within runs.")
+	group.add_option('--generank', dest="generank", default=False, action="store_true", help="create or rewrite .gnrnk file")
 	group.add_option('--ann', dest="ann", default=False, action="store_true", help="create or rewrite .annotation file")
 	group.add_option('--tabixfile', dest="tabixfile", help="The tabix file containing gene annotations you are interested in.")
 	group.add_option('--simulation', dest="simulation", default=False, action="store_true", help="do simulation analysis.")
 	group.add_option('--trueID', dest="trueID", default=0, help="The history id of the true simulated history.", type="int")
-	group.add_option('--binwidth', dest='binwidth', help='the multiplier between history ids of independent runs', default=histseg.Global_BINWIDTH, type="int")
-	group.add_option("--cnavgout", dest="cnavgout", help="The CN-AVG output directory for the sample")
-	group.add_option("--outputdir", dest="outputdir", help="The output directory for the analysis")
-	group.add_option("--sampleid", dest="sampleid", help="the sampleid")
 	parser.add_option_group(group)
 
 def main(): 

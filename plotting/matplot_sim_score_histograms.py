@@ -1,4 +1,4 @@
-#!/inside/home/common/bin/python2.7 
+#!/usr/bin/env python 
 
 import matplotlib
 matplotlib.use('Agg')

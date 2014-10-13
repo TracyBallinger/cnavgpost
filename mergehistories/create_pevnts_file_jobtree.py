@@ -50,20 +50,18 @@ class CreatePevntsFile(Target):
 	def run(self):
 		self.logToMaster("CreatePevntsFile\n")
 		opts=self.opts
-		braneyfiles=glob.glob(opts.cnavgdir+"/"+"HISTORIES_*.braney")
+		braneyfiles=glob.glob(opts.cnavgout+"/"+"HISTORIES_*.braney")
 		sys.stderr.write("braneyfiles: %s\n" % (str(braneyfiles)))
 		pevntsfiles=[]
 		for braneyfn in braneyfiles:
 			sim=int(re.match(".*HISTORIES_(\d+)\.braney", braneyfn).group(1))
 			evntsfile=os.path.join(opts.outputdir, "sim.%d.pevnts" % sim)
 			pevntsfiles.append(evntsfile)
-			sys.stderr.write("Soon Creating file %s\n" % (evntsfile))
 			# This will create a pevnts file that is sorted and untrimmed. 
-#			self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
-#			MergeSingleBraneyFile(braneyfn, evntsfile, sim).run()
+	#		self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
+			MergeSingleBraneyFile(braneyfn, evntsfile, sim).run()
 			sys.stderr.write("finished Creating file %s\n" % (evntsfile))
-		#sys.stderr.write("am running here %d\n" % "hello")
-		#self.setFollowOnTarget(MergePevntsFiles(pevntsfiles, self.pevntsfile))
+		#self.setFollowOnTarget(MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp))
 		MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp).run()
 
 class MergePevntsFiles(Target): 
@@ -76,7 +74,9 @@ class MergePevntsFiles(Target):
 
 	def run(self): 
 		histseg.merge_pevnts_files(self.pevntsfiles, self.pevntsout, self.historyScores, self.totalp)
-
+		# clean up 
+		for f in self.pevntsfiles: 
+			os.remove(f)
 
 class MergeSingleBraneyFile(Target):
 	def __init__(self, braneyfn, evntsfile, sim):
@@ -100,9 +100,9 @@ class MergeSingleBraneyFile(Target):
 		sys.stderr.write("Created file %s\n" % (self.evntsfile))
 
 def main(): 
-	parser = OptionParser(usage = "create_pevnts_file_jobtree.py --cnavgdir cnavgdir --outputdir outputdir ... jobtree_options\n")
+	parser = OptionParser(usage = "create_pevnts_file_jobtree.py --cnavgout cnavgdir --outputdir outputdir ... jobtree_options\n")
 	parser.add_option("--outputdir", dest="outputdir", help="where you want the created .pvents files to go", type="string")
-	parser.add_option("--cnavgdir", dest="cnavgdir", help="where the .braney files are.", type="string")
+	parser.add_option("--cnavgout", dest="cnavgout", help="where the .braney files are.", type="string")
 	parser.add_option("--sampleid", dest="sampleid", help="The prefix of the .pevnts file.  ie sampleid.pevnts will be created.", type="string")
 	parser.add_option("--histstats", dest="historystatsfile", help="The historystats.txt file.", type="string")
 	parser.add_option("--binwidth", dest="binwidth", help="the multiplier for each history id to distinguish independent simulations.", type=int, default=histseg.Global_BINWIDTH)

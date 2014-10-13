@@ -1,4 +1,4 @@
-#!/inside/home/common/bin/python2.7 
+#!/usr/bin/env python 
 
 import matplotlib
 matplotlib.use('Agg')
@@ -30,9 +30,14 @@ class SimData:
 		self.FP=range(len(eventtypes))
 		self.FN=range(len(eventtypes))
 		self.TN=range(len(eventtypes))
-		mydat=np.loadtxt(self.datfile, skiprows=1, usecols=(1,2,3,4,7), ndmin=2)
-		x=np.loadtxt(self.datfile, skiprows=1, usecols=(0,5,6), dtype=np.dtype(str), ndmin=2)
-		myetypes=x[:,0]
+		datfh=open(self.datfile)
+		headerline=datfh.readline()
+		datcolumns=headerline.strip().split("\t")
+		datfh.close()
+		#Should make this a dictionary or something not as hard-coded
+		(event_id, event_type, avecost, Lscore, CNval, true, length, prevals, orders, numhists)=range(10) 
+		mydat=np.loadtxt(self.datfile, skiprows=1, usecols=(Lscore, CNval, true, length, numhists), ndmin=2)
+		myetypes=np.loadtxt(self.datfile, skiprows=1, usecols=([event_type]), dtype=np.dtype(str), ndmin=2)
 		(lscore, CNval, t, length, numhists) = range(5)
 		Ps=mydat[:,lscore]>pvalcutoff
 		Ns=mydat[:,lscore]<=pvalcutoff
@@ -78,6 +83,7 @@ def get_accuracy_values(mysimulations, edgeorevent, eventtypes, numsims, pvalcut
 		line=mysimulations[i]
 		if len(line.strip().split('\t'))==3:
 			(dir, blocks, events)=line.strip().split('\t')
+			simid=os.path.basename(dir)
 		else: 
 			(dir, simid, blocks, events)=line.strip().split('\t')
 		mysimdata=SimData(dir, edgeorevent, pvalcutoff)

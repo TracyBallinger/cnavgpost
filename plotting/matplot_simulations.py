@@ -1,4 +1,4 @@
-#!/inside/home/common/bin/python2.7 
+#!/usr/bin/env python 
 
 import matplotlib
 matplotlib.use('Agg')
@@ -124,7 +124,7 @@ if __name__ == "__main__":
 	if args.eventtypes: 
 		eventtypes=map(int, args.eventtypes.strip().split())
 	else:
-		 args.eventtypes=[0]
+		 eventtypes=[0]
 #main(simulations, outname, edgeorevent, eventtypes, plot, data, xlimit):
 	
 	main(args.simulations, args.outname, edgeorevent, eventtypes, args.plot, args.data, args.xlimit)

@@ -1,7 +1,6 @@
-# For use in determining the number of TP and FP, etc, of events across a CNAVG sampling of histories given that one of the histories is the truth.  This history is what all other will be compared to.  
-
 #!/usr/bin/env python 
 
+# For use in determining the number of TP and FP, etc, of events across a CNAVG sampling of histories given that one of the histories is the truth.  This history is what all other will be compared to.  
 import os, sys
 import cnavgpost.mergehistories.event_cycles_module as histseg
 import cPickle as pickle
@@ -130,7 +129,7 @@ def add_options(parser):
 	parser.add_argument('--datout', help='the file to write data to', type=argparse.FileType('w')) #, default=sys.stdout) 
 	parser.add_argument('--stats', help='the file to write stats to.', type=argparse.FileType('w')) #, default=sys.stderr) 
 	parser.add_argument('--breaks', help='the file to write breaklocations to.', type=argparse.FileType('w')) #, default=sys.stderr) 
-	parser.add_argument('--binwidth', dest='binwidth', help='the multiplier between history ids of independent runs', default=histseg.Global_BINWIDTH, type="int")	
+	parser.add_argument('--binwidth', dest='binwidth', help='the multiplier between history ids of independent runs', default=histseg.Global_BINWIDTH, type=int)	
 
 if __name__== '__main__': 
 	parser = argparse.ArgumentParser(description='does analysis for simulation tests')
