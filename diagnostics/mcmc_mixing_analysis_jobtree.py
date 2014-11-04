@@ -171,7 +171,7 @@ def combine_datafiles(datafiles, outfile):
 		data=np.loadtxt(datafile, skiprows=1)
 	#	logger.info("data is %s" % str(data.shape))
 		if i ==0:
-			mydata=np.int_(data[:,0:2])
+			mydata=np.mod(np.int_(data[:,0:2]), histseg.Global_BINWIDTH)
 			myfmts.append("%d")	
 			myfmts.append("%d")
 			myheader.append("historyID_1")	

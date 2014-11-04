@@ -45,6 +45,7 @@ class Setup(Target):
 
 		historystatsfile=os.path.join(outputdir, "historystats.txt")
 		if not os.path.exists(historystatsfile): 
+			self.logToMaster("Creating historystats.txt...%s" % historystatsfile) 
 			logger.info("historystatsfile: %s" % historystatsfile)
 			CombineHistoryStatsfiles(opts, historystatsfile).run()
 		
@@ -55,26 +56,31 @@ class Setup(Target):
 
 		pevntsfile=os.path.join(outputdir, opts.sampleid + ".pevnts")
 		if opts.pevnts or not os.path.exists(pevntsfile): 
+			self.logToMaster("Creating pevntsfile...%s" % pevntsfile) 
 			logger.info("pevntsfile: %s" % pevntsfile)
 			pevntsjobtree.CreatePevntsFile(pevntsfile, self.historyScores, self.totalp, opts).run()
 
 		pedgesfile=os.path.join(outputdir, sampleid + ".pedgs")
 		if opts.pedges or not os.path.exists(pedgesfile):
+			self.logToMaster("Creating pedgesfile...%s" % pedgesfile) 
 			logger.info("pedgesfile: %s" % pedgesfile)
 			CreatePedgesFile(pickle.load(open(pevntsfile, 'rb')), pedgesfile, self.historyScores, self.totalp, ignore_cn=False).run()
 		
 		mrgpedgesfile=os.path.join(outputdir, sampleid + ".mrgpedgs")
 		if not os.path.exists(mrgpedgesfile):
+			self.logToMaster("Creating mrgpegesfile...%s" % mrgpedgesfile) 
 			logger.info("mrgpedgesfile: %s" % mrgpedgesfile)
 			CreatePedgesFile(pickle.load(open(pevntsfile, 'rb')), mrgpedgesfile, self.historyScores, self.totalp, ignore_cn=True).run()
 		
 		linksfile =os.path.join(outputdir, sampleid +".links")
 		if opts.links and not os.path.exists(linksfile): 
+			self.logToMaster("Creating linksfile...%s" % linksfile) 
 			logger.info("linksfile: %s" % linksfile)
 			self.addChildTarget(CreateLinksFile(pevntsfile, linksfile, self.totalp))		
 	
 		breaksfile=os.path.join(outputdir, "breakpoints.txt")
 		if not os.path.exists(breaksfile): 
+			self.logToMaster("Creating breaksfile...%s" % breaksfile) 
 			breaklocs=histseg.get_breakpoints(pickle.load(open(pedgesfile, 'rb')), opts.trueID)
 			breaklocs2=histseg.get_breakpoints(pickle.load(open(mrgpedgesfile, 'rb')), opts.trueID)
 			breaksfh=open(breaksfile, 'w')
@@ -85,6 +91,7 @@ class Setup(Target):
 		annotationfile=os.path.join(outputdir, sampleid + ".ann")
 		generankfile=os.path.join(outputdir, sampleid + ".gnrank")
 		if opts.generank and not os.path.exists(generankfile): 
+			self.logToMaster("Creating generankfile: %s" % generankfile)
 			logger.info("generankfile: %s" % generankfile)
 			if not self.events: 
 				self.events=pickle.load(open(pevntsfile, 'rb'))
@@ -97,6 +104,7 @@ class Setup(Target):
 			self.addChildTarget(CreateAnnotationFile(self.events, opts.tabixfile, annotationfile))
 		
 		if opts.mcmcmix: 	
+			self.logToMaster("Setting up MCMC analysis")
 			mcmcdir=os.path.join(outputdir, "mcmcdata")
 			mcmcdat=os.path.join(mcmcdir, "edge_counts.dat")
 			mcmcdir=os.path.join(outputdir, "mcmcdata")
@@ -108,6 +116,7 @@ class Setup(Target):
 				self.addChildTarget(mcmcjobtree.SetupMCMC(opts, mcmcdir))
 
 		if opts.simulation: 
+			self.logToMaster("Setting up Simulation analysis")
 			simoutput=os.path.join(outputdir, "events.stats")
 			if ((not os.path.exists(simoutput)) or (os.path.getsize(simoutput) == 0)): 
 				self.addChildTarget(SimAnalysisJob(pevntsfile, opts.trueID, self.historyScores, "events", outputdir, opts.binwidth))

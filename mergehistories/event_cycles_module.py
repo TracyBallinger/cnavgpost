@@ -674,6 +674,7 @@ def historyids_to_indices(historyids, historyScores):
 	newi=iter+sim*runlen
 	return newi
 
+### This is deprecated... costs aren't part of events anymore 
 def get_total_likelihood(events): 
 	allhistoryids=[]
 	allcosts=[]
@@ -759,9 +760,8 @@ def compute_lscore_over_time(events, historyScores, run, outputfn):
 			lscores[i]=lscore
 		mydata = np.vstack((mydata, lscores))
 	np.savetxt(outputfn, mydata.T, delimiter='\t', header="\t".join(myeventids) + "\n" + "\t".join(map(str, myruncounts)))
-	  	
-###############################################
-# Deprecated function (not used)  
+
+# This will merge events together how?... 	  	
 def merge_events(events): 
 	newevent=Event(events[0].segs)
 	newevent.histories=events[0].histories
@@ -787,3 +787,5 @@ def merge_events(events):
 	# SORT THE VALUES BY HISTORY ID
 	newevent.id = "%d.%d" % (newevent.histories[0], newevent.orders[0]) 
 	return newevent
+
+

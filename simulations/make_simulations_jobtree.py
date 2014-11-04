@@ -24,11 +24,12 @@ class SetupSim(Target):
 		opts=self.options
 		specfile=opts.specfile
 		outputdir=opts.outputdir
-		id =opts.id 
+		id=opts.id 
 		for specs in open(specfile, 'r'): 
 			(blocks, events) = map(int, specs.strip().split())
 			for i in xrange(opts.reps): 
 				self.addChildTarget(RunCnavgSimulation(blocks, events, i, outputdir, opts))			
+
 class Chdir: 
 	def __init__(self, newPath):
 		self.savedPath=os.getcwd()

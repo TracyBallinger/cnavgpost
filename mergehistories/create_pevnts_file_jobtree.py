@@ -36,7 +36,7 @@ class SetupCreatePevnts(Target):
 		historyScores=np.loadtxt(opts.historystatsfile, dtype=int)
 		totalp=histseg.compute_likelihood_histories(historyScores[:,0], historyScores)
 		pevntsfile=os.path.join(outputdir, opts.sampleid + ".pevnts")
-		CreatePevntsFile(pevntsfile, historyScores, totalp, opts).run()
+		self.addChildTarget(CreatePevntsFile(pevntsfile, historyScores, totalp, opts))
 
 
 class CreatePevntsFile(Target):
@@ -58,7 +58,7 @@ class CreatePevntsFile(Target):
 			evntsfile=os.path.join(opts.outputdir, "sim.%d.pevnts" % sim)
 			pevntsfiles.append(evntsfile)
 			# This will create a pevnts file that is sorted and untrimmed. 
-	#		self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
+		#	self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
 			MergeSingleBraneyFile(braneyfn, evntsfile, sim).run()
 			sys.stderr.write("finished Creating file %s\n" % (evntsfile))
 		#self.setFollowOnTarget(MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp))

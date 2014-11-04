@@ -14,6 +14,7 @@ def merge_segments_into_regions(event):
 			mylocs.append((seg.chr, seg.start, seg.start+1))
 			mylocs.append((seg.chr2, seg.end, seg.end+1))
 		else: 
+	#	elif event.cnval != 1: # only count a region as affected if it has a copy number change, not if it is simply inverted.  
 			mylocs.append((seg.chr, seg.start, seg.end))
 	mycoords=[]
 	while len(mylocs) >0:

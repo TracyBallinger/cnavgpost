@@ -9,7 +9,7 @@ from optparse import OptionGroup
 from optparse import OptionParser
 from sonLib.bioio import logger
 import os, sys, glob
-import cpickle
+import cPickle as pickle 
 import numpy as np
 import cnavgpost.mergehistories.event_cycles_module as histseg
 import cnavgpost.diagnostics.likelihood_over_time_analysis as lota
@@ -54,18 +54,23 @@ class SetupLota(Target):
 		FPevents=[]
 		Pcount=0
 		for event in events: 
-			event.histories=histseg.listout_ranges(event.histRanges)
-			if 0 in event.histories:
-				Pcount+=1
-				if len(event.histories)>1:
-					TPevents.append(event)
+			if opts.simulation:
+				event.histories=histseg.listout_ranges(event.histRanges)
+				if 0 in event.histories:
+					Pcount+=1
+					if len(event.histories)>1:
+						TPevents.append(event)
+				else: 
+					FPevents.append(event)
 			else: 
-				FPevents.append(event)
+				Pcount+=1
+				TPevents.append(event)
 #		pickle.dump(truevents, os.path.join(outputdir, "true.pevnts"), pickle.HIGHEST_PROTOCOL) 
 		historystats=os.path.join(cnavgout, "historystats.txt")
 		historyScores=np.loadtxt(historystats, dtype=int)
 		lota.likelihood_over_time_analysis(TPevents, historyScores, outputdir, "TP", 0.5, opts.simulation) 
-		lota.likelihood_over_time_analysis(FPevents, historyScores, outputdir, "FP", 0.5, opts.simulation) 
+		if opts.simulation: 
+			lota.likelihood_over_time_analysis(FPevents, historyScores, outputdir, "FP", 0.5, opts.simulation) 
 		lota.likelihood_over_time_analysis(events, historyScores, outputdir, "Tot", 0, opts.simulation) 
 		myfh=open(os.path.join(outputdir, "true_count.txt"), 'w')
 		myfh.write("%d\n" % Pcount)
@@ -101,13 +106,31 @@ class CombineEventCounts(Target):
 		for datkey in mydata.keys():
 			outputf=os.path.join(self.outputdir, "%s.sum.dat" % datkey)
 			self.logToMaster("outputf is %s" % outputf)
-			np.savetxt(outputf, mydata[datkey], delimiter="\t", fmt="%d")	
+			np.savetxt(outputf, mydata[datkey], delimiter="\t", fmt="%d")
+		# combine the lscores_*.txt files by cating them together. 
+		if (True): 
+			mydata={}
+			for line in mylines:
+				(cnavgout, sampleid) = line.strip().split('\t')[:2]
+				lscorefiles=glob.glob(os.path.join(cnavgout, "lotadir", "lscores_*.txt.gz"))
+				for datfile in lscorefiles: 
+					dat=np.loadtxt(datfile)
+					datkey=os.path.basename(datfile).split(".txt")[0]
+					if datkey in mydata.keys(): 
+						mydata[datkey]=np.hstack((mydata[datkey], dat))
+					else: 
+						mydata[datkey]=dat
+			for datkey in mydata.keys(): 
+				outputf=os.path.join(self.outputdir, "%s.sum.txt.gz" % datkey)
+				self.logToMaster("outputf is %s" % outputf)
+				np.savetxt(outputf, mydata[datkey], delimiter="\t")
+			
 
 
 def main(): 
 	parser = OptionParser(usage = "event_over_time_analysis_jobtree.py ...")
 	parser.add_option("--samplelist", dest="samplelist", help="The list of CNAVG outputs and sample ids. Should have the form <directory><ID>...")
-	parser.add_option("--outputdir", dest="outputdir", help='Where you want the summary files to be put.')
+	parser.add_option("--outputdir", dest="outputdir", help='Where you want the summary files to be put.  This directory should exist.')
 	parser.add_option("--binwidth", dest="binwidth", help='the multiplier between history ids of independent runs', default=histseg.Global_BINWIDTH, type="int")
 	parser.add_option('--simulation', dest="simulation", default=False, action="store_true", help="do simulation analysis.")
 	Stack.addJobTreeOptions(parser)

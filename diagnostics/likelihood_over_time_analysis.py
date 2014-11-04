@@ -1,8 +1,9 @@
-#!/usr/bin/env/python 
+#!/usr/bin/env python 
 
 import argparse
 import numpy as np
-import cpickle, os, sys 
+import os, sys 
+import cPickle as pickle 
 import cnavgpost.mergehistories.event_cycles_module as histseg
 
 def likelihood_over_time_analysis(events, historyScores, outputdir, filename, pvalcutoff=0.5, simulation=False, testks=True, testns=True): 
@@ -21,7 +22,7 @@ def likelihood_over_time_analysis(events, historyScores, outputdir, filename, pv
 		costsarray=costsarray[:,1:,:]	
 	# test out different ks
 	if testks: 
-		myks=(0, 0.01, 0.1, 1)
+		myks=(0, 0.01, 0.1, 0.5, 1.0)
 		get_data_for_diff_ks(historycosts, costsarray, myks, filename, pvalcutoff, outputdir)
 	if testns: 
 		myk=histseg.Global_K
@@ -32,6 +33,7 @@ def get_data_for_diff_ks(historycosts, costsarray, myks, filename, pvalcutoff, o
 	for k in myks: 
 		#likelihood_array with have dimensions (runlen)x(events)
 		likelihood_array=get_likelihood_over_time(historycosts, costsarray, k)	
+		np.savetxt(os.path.join(outputdir, "lscores_%f.txt.gz" % k), likelihood_array[likelihood_array.shape[0]-1,:])
 		# eventcounts will have dim (runlen)x 3.  One column for all events, one for events with cost 0 and one for events with cost>0
 		eventcounts=get_event_counts_over_time(likelihood_array, costsarray, pvalcutoff)
 		if kcounts.size==0: 
