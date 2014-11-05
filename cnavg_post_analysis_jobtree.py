@@ -88,20 +88,23 @@ class Setup(Target):
 				(n, t) = breaklocs[loc]
 				(n2, t2) = breaklocs2[loc]
 				breaksfh.write("%s\t%d\t%d\t%d\t%d\n" % (loc, n, t, n2, t2))	
-		annotationfile=os.path.join(outputdir, sampleid + ".ann")
-		generankfile=os.path.join(outputdir, sampleid + ".gnrank")
+		annotationfile=os.path.join(outputdir, "evnts.ann")
+		#only create the annotations file here if we aren't doing gene ranking.  Otherwise the gene rank option will create the annotation file for itself.  
+		if opts.ann and not opts.generank and not os.path.exists(annotationsfile): 
+			logger.info("annotationfile: %s" % annotationfile)
+			if not self.events: 
+				self.events=pickle.load(open(pevntsfile, 'rb'))
+			self.addChildTarget(CreateAnnotationFile(self.events, opts.tabixfile, annotationfile))
+			
+		generankfile=os.path.join(outputdir, "generanks.txt")
+		# annotation file comes before generankfile (gene ranking depends on annotations.) 
 		if opts.generank and not os.path.exists(generankfile): 
 			self.logToMaster("Creating generankfile: %s" % generankfile)
 			logger.info("generankfile: %s" % generankfile)
 			if not self.events: 
 				self.events=pickle.load(open(pevntsfile, 'rb'))
-			self.addChildTarget(CreateGeneRankFile(self.events, opts.tabixfile, self.totalp, annotationfile, generankfile))	
-			logger.info("after creating generankfile")
-		elif opts.ann and not opts.generank: 
-			logger.info("annotationfile: %s" % annotationfile)
-			if not self.events: 
-				self.events=pickle.load(open(pevntsfile, 'rb'))
-			self.addChildTarget(CreateAnnotationFile(self.events, opts.tabixfile, annotationfile))
+				self.historyScores=np.loadtxt(historystatsfile, dtype=int)
+			self.addChildTarget(CreateGeneRankFile(self.events, opts.tabixfile, self.totalp, annotationfile, generankfile, self.historyScores))	
 		
 		if opts.mcmcmix: 	
 			self.logToMaster("Setting up MCMC analysis")
@@ -129,21 +132,21 @@ class Setup(Target):
 
 
 class CreateGeneRankFile(Target):
-	def __init__(self, events, tabixfile, totalp, annotationfile, generankfile):
+	def __init__(self, events, tabixfile, totalp, annotationfile, generankfile, historyScores):
 		Target.__init__(self)
 		self.events=events
 		self.tabixfile=tabixfile
 		self.annotationfile=annotationfile
 		self.generankfile=generankfile
+		self.historyScores=historyScores
 		self.totalp=totalp
 	
 	def run(self):
-		logger.info("Should be creating %s" % self.annotationfile)
-		CreateAnnotationFile(self.events, self.tabixfile, self.annotationfile).run()
-		logger.info("Should be creating %s" % self.generankfile)
-		histories_to_gene_orders.main(self.events, self.annotationfile, self.totalp, open(self.generankfile, 'w')) 	
+		if not os.path.exists(self.annotationfile): 
+			CreateAnnotationFile(self.events, self.tabixfile, self.annotationfile).run()
+		logger.info("Creating %s" % self.generankfile)
+		histories_to_gene_orders.main(self.events, self.annotationfile, self.totalp, self.historyScores, open(self.generankfile, 'w')) 	
 
-#  This can be gotten rid of.... 
 class CombineHistoryStatsfiles(Target):
 	def __init__(self, options, historystatsfile):
 		Target.__init__(self)
@@ -232,14 +235,11 @@ class CreateAnnotationFile(Target):
 		self.annfile=annotationfile
 			
 	def run(self): 
-		logger.info("maybe creating %s" % self.annfile)
-		if not os.path.exists(self.annfile):
-			logger.info("am creating %s" % self.annfile)
-			self.logToMaster("CreateAnnotationFile\n") 
-			outputfh=open(self.annfile, 'w')
-			allevents=self.evnts
-			mytabix=pysam.Tabixfile(self.tabixfile, 'r')
-			annotate_events.main(allevents, mytabix, outputfh)	
+		self.logToMaster("CreateAnnotationFile\n") 
+		outputfh=open(self.annfile, 'w')
+		allevents=self.evnts
+		mytabix=pysam.Tabixfile(self.tabixfile, 'r')
+		annotate_events.main(allevents, mytabix, outputfh)	
 
 def add_analysis_options(parser): 
 	group=OptionGroup(parser, "CNAVG Post Analysis Options")
@@ -251,8 +251,8 @@ def add_analysis_options(parser):
 	group.add_option('--pedges', dest="pedges", default=False, action="store_true", help="create or rewrite .pedges file")
 	group.add_option('--links', dest="links", default=False, action="store_true", help="create or rewrite .links file")
 	group.add_option('--mcmcmix', dest="mcmcmix", default=False, action="store_true", help="do analysis to look at the mixing across and within runs.")
-	group.add_option('--generank', dest="generank", default=False, action="store_true", help="create or rewrite .gnrnk file")
-	group.add_option('--ann', dest="ann", default=False, action="store_true", help="create or rewrite .annotation file")
+	group.add_option('--generank', dest="generank", default=False, action="store_true", help="create .gnrnk file if it doesn't exist.")
+	group.add_option('--ann', dest="ann", default=False, action="store_true", help="create .annotation file if it doesn't exist.")
 	group.add_option('--tabixfile', dest="tabixfile", help="The tabix file containing gene annotations you are interested in.")
 	group.add_option('--simulation', dest="simulation", default=False, action="store_true", help="do simulation analysis.")
 	group.add_option('--trueID', dest="trueID", default=0, help="The history id of the true simulated history.", type="int")
