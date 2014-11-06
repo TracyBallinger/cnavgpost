@@ -546,12 +546,12 @@ def make_events_from_braneyfn(braneyfn):
 	myevents=[]
 	eventlines=[]
 	batchbreak=1000 # after x histories, stop and merge them together.  
+	breakcounter=0
 	eventcount=0
 	peventcount=0
 	histcount=0
 	for braneyline in braneyf: 
 		if braneyline.strip() != '':
-#			sys.stderr.write("length of eventlines: %d\n " % len(eventlines))
 			braneyseg=Braney_seg(braneyline)
 			if eventorder==-1: 
 				eventorder=braneyseg.order #the order is unique within but not between histories
@@ -562,19 +562,20 @@ def make_events_from_braneyfn(braneyfn):
 			elif braneyseg.order != eventorder or braneyseg.historyid != histid: 
 				if histid != braneyseg.historyid: 
 					histcount +=1
+					breakcounter+=1
 					peventcount=eventcount
 					eventcount=0
-#				sys.stderr.write("making event %d with %d lines:\n" % (eventorder, len(eventlines)))
 				myevent=Event(eventlines)
+				myevent.histories=[histcount]  #change this because sometimes when cn-avg.py is run in -c mode histories are added to the end of .braney files, but the history ids start from 0 again. 
 				myevent.make_segstr()
 				eventcount+=1
 				myevents.append(myevent)
-				if histcount >= batchbreak:
+				if breakcounter >= batchbreak:
 					sortedevents=sorted(myevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))
 					uniqueevents=unique_c_events_sorted_list(sortedevents)
-					sys.stderr.write("%d\t%d\t%d\t%d\n" % (histid, peventcount, len(myevents), len(uniqueevents)))
+			#		sys.stderr.write("%d\t%d\t%d\t%d\n" % (histid, peventcount, len(myevents), len(uniqueevents)))
 					myevents=uniqueevents
-					histcount=0
+					breakcounter=0
 				eventlines=[braneyseg]
 				eventorder=braneyseg.order
 				histid=braneyseg.historyid
@@ -639,6 +640,7 @@ def combine_history_statsfiles(cnavgdir):
 	for statsfile in statsfiles:
 		sim=int(re.match(".*HISTORY_STATS_(\d+)", statsfile).group(1))
 		mysims.append(sim)
+		print "sim is %d" % sim
 		historystats=np.loadtxt(statsfile, dtype=int) 
 		runlens.append(historystats.shape[0])
 	runlen=max(runlens)
@@ -650,7 +652,7 @@ def combine_history_statsfiles(cnavgdir):
 			mystats=np.zeros(((max(mysims)+1)*runlen, historystats.shape[1]+1), dtype=int)
 		hids=np.array(range(historystats.shape[0]))+ sim*Global_BINWIDTH
 		i = sim*runlen
-		mystats[i:i+runlen,:] = np.hstack((np.atleast_2d(hids).T, historystats))
+		mystats[i:i+historystats.shape[0],:] = np.hstack((np.atleast_2d(hids).T, historystats))
 	return mystats
 
 def get_historyScores(statsfile): 
@@ -673,19 +675,6 @@ def historyids_to_indices(historyids, historyScores):
 	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1
 	newi=iter+sim*runlen
 	return newi
-
-### This is deprecated... costs aren't part of events anymore 
-def get_total_likelihood(events): 
-	allhistoryids=[]
-	allcosts=[]
-	for event in events: 
-		for i in xrange(len(event.histories)): 
-			hid = event.histories[i]
-			if hid not in allhistoryids: 
-				allhistoryids.append(hid)
-				allcosts.append(event.costs[i])
-	totalp = compute_likelihood(allcosts, 1)
-	return totalp 
 
 def get_breakpoints(events, historyid): 
 	breaklocs={}
