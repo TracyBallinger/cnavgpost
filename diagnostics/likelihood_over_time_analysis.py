@@ -22,7 +22,7 @@ def likelihood_over_time_analysis(events, historyScores, outputdir, filename, pv
 		costsarray=costsarray[:,1:,:]	
 	# test out different ks
 	if testks: 
-		myks=(0, 0.01, 0.1, 0.5, 1.0)
+		myks=(0, 0.5, 1.0)
 		get_data_for_diff_ks(historycosts, costsarray, myks, filename, pvalcutoff, outputdir)
 	if testns: 
 		myk=histseg.Global_K

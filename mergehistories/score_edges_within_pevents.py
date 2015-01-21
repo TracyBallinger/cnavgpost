@@ -1,6 +1,5 @@
-#This is used to look at individual edges (segments or adjacencies) across histories as opposed to the cyclic events.   
-
 #!/usr/bin/env python 
+#This is used to look at individual edges (segments or adjacencies) across histories as opposed to the cyclic events.   
 
 import sys, os
 import copy
@@ -63,6 +62,7 @@ def consolidate_values_sumCN(edge1, edge2):
 def score_edges_within_pevents(allevents, historyScores, totalp, prev_error=0.05, ignore_cn=True): 
 	prevalence_error=prev_error
 	sys.stderr.write("number of events: %d\n" % (len(allevents)))
+	sys.stderr.write("ignore_cn: %s\n" % ignore_cn) 
 	alledges=[]
 	for event in allevents:
 		event.unpack() 
@@ -70,17 +70,18 @@ def score_edges_within_pevents(allevents, historyScores, totalp, prev_error=0.05
 			edge=copy.deepcopy(event)
 			edge.segs=[seg]
 			edge.make_segstr()
-			if ignore_cn: 
-				(mysegstr, sign)=histseg.remove_signs_from_segstr(edge.segstr) 
-				edge.segstr="+/"+mysegstr
-				if sign=="-": 
-					edge.cnval= -1*event.cnval
+			#if ignore_cn: 
+			#	(mysegstr, sign)=histseg.remove_signs_from_segstr(edge.segstr) 
+			#	edge.segstr="+/"+mysegstr
+			#	edge.cnval= sign*event.cnval
 			alledges.append(edge)
 	sortededges=sorted(alledges, key=lambda x: (x.segstr, x.cnval))
 	if ignore_cn: 
-		unique_edges=unique_loc_edges(sortededges)
+		unique_edges=histseg.merge_events_by_type(sortededges)  #unique_loc_edges(sortededges)
 	else: 
-		unique_edges=unique_c_edges(sortededges)
+		unique_edges=histseg.unique_c_events_sorted_list(sortededges)
+		splitoffs=histseg.get_split_offs(unique_edges)
+		unique_edges+=splitoffs
 	sys.stderr.write("totalp: %s\n" % (str(totalp)))
 	sys.stderr.write("number of edges is: %d\n" % (len(unique_edges)))
 	for edge in unique_edges: 

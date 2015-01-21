@@ -1,4 +1,4 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python
 
 import matplotlib 
 matplotlib.use('Agg')
@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse 
 import os, sys
-import event_cycles_module as histseg
+import cnavgpost.mergehistories.event_cycles_module as histseg
 
 # from IPython.parallel.util import interactive 
 

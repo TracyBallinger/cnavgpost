@@ -15,7 +15,7 @@ from cnavgpost.mergehistories.braney_lines_module import *
 Global_BINWIDTH=10000
 Global_MAXCOST=300 
 Global_K=0
-Global_EVENTTYPES=['any', 'amp', 'del', 'adj']
+Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
 
 # an Event is made up of multiple Braneysegs and some extra info
 class Event:
@@ -71,6 +71,7 @@ class Event:
 		else:
 			return False
 
+	
 	# update is done after equivalent events across multiple histories have been merged together.  Then the likelihood score and other stats for this event can be calculated. 	
 	def update(self, historyScores):
 		if self.segstr=="": 
@@ -183,7 +184,7 @@ class Event:
 					coords=m.group(2,3,4,5,6,7)
 					bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
 					sign=m.group(1)
-			if sign=="-": bseg.cnval = bseg.cnval * -1
+			if sign=="+": bseg.cnval = bseg.cnval * -1
 			self.segs.append(bseg)
 			cycleorder+=1
 	
@@ -226,17 +227,20 @@ class Event:
 			self.segs=nodup_segs
 		self.dupsremoved=True
 
-#Global_EVENTTYPES=['any', 'amp', 'del', 'adj']
+#Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
 	def determineEventType(self): 
 		mytype=0
 		if len(self.segs) ==0: 
 			self.make_segs_from_str()
 		for seg in self.segs: 
 			if seg.seg:
-				if seg.cnval>0 and mytype != 2:
-					mytype=1
-				elif seg.cnval<0 and mytype != 1: 
+				# remember for segments, the sign is opposite
+				if seg.cnval<0 and mytype != 2:
 					mytype=2
+				elif seg.cnval>0 and mytype != 1: 
+					mytype=1
+				else: 
+					mytype=4
 			else: 
 				if mytype ==0:
 					mytype=3
@@ -288,7 +292,7 @@ class Event:
 				if seg.chr == chr and ((seg.start <= end and seg.start >= start) or (seg.end <= end and seg.end >= start)):
 					return True 
 		return False
-
+	
 	def multiline_str(self):
 		mystr=""
 		for seg in self.segs: 
@@ -650,7 +654,7 @@ def combine_history_statsfiles(cnavgdir):
 			mystats=np.zeros(((max(mysims)+1)*runlen, historystats.shape[1]+1), dtype=int)
 		hids=np.array(range(historystats.shape[0]))+ sim*Global_BINWIDTH
 		i = sim*runlen
-		mystats[i:i+runlen,:] = np.hstack((np.atleast_2d(hids).T, historystats))
+		mystats[i:(i+historystats.shape[0]),:] = np.hstack((np.atleast_2d(hids).T, historystats))
 	return mystats
 
 def get_historyScores(statsfile): 
@@ -788,4 +792,22 @@ def merge_events(events):
 	newevent.id = "%d.%d" % (newevent.histories[0], newevent.orders[0]) 
 	return newevent
 
-
+def merge_events_by_type(events, historyScores=None): 
+	 #order events by segstr
+	sevents=sorted(events, key=lambda x: (x.segstr))
+	unique_events=[]
+	eventA=sevents[0]
+	for eventB in sevents[1:]: 
+		if eventB.segstr == eventA.segstr:  #don't need to look at CN because we only care about direction change, and this is in the segstr
+			eventA.add_Event_data(eventB)
+		else: 
+			unique_events.append(eventA)
+			eventA=eventB
+	unique_events.append(eventA)
+	finalevents=unique_events
+	splitoffs=get_split_offs(finalevents)
+	sys.stderr.write("There are %d splitoffs\n" % len(splitoffs))
+	finalevents+=splitoffs
+	for e in finalevents: 
+		e.update(historyScores)
+	return(finalevents)	

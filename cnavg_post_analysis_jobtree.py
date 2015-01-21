@@ -64,13 +64,19 @@ class Setup(Target):
 		if opts.pedges or not os.path.exists(pedgesfile):
 			self.logToMaster("Creating pedgesfile...%s" % pedgesfile) 
 			logger.info("pedgesfile: %s" % pedgesfile)
-			CreatePedgesFile(pickle.load(open(pevntsfile, 'rb')), pedgesfile, self.historyScores, self.totalp, ignore_cn=False).run()
+			CreatePedgesFile(pickle.load(open(pevntsfile, 'rb')), pedgesfile, self.historyScores, self.totalp, False).run()
 		
-		mrgpedgesfile=os.path.join(outputdir, sampleid + ".mrgpedgs")
+		mrgpeventsfile=os.path.join(outputdir, sampleid + ".pmevnts")
+		if not os.path.exists(mrgpeventsfile):
+			self.logToMaster("Creating mpevnts...%s" % mrgpeventsfile) 
+			logger.info("mrgpeventsfile: %s" % mrgpeventsfile)
+			CreateMergedEventsFile(pickle.load(open(pevntsfile, 'rb')), mrgpeventsfile, self.historyScores).run()
+		
+		mrgpedgesfile=os.path.join(outputdir, sampleid + ".pmedgs")
 		if not os.path.exists(mrgpedgesfile):
 			self.logToMaster("Creating mrgpegesfile...%s" % mrgpedgesfile) 
 			logger.info("mrgpedgesfile: %s" % mrgpedgesfile)
-			CreatePedgesFile(pickle.load(open(pevntsfile, 'rb')), mrgpedgesfile, self.historyScores, self.totalp, ignore_cn=True).run()
+			CreateMergedEventsFile(pickle.load(open(pedgesfile, 'rb')), mrgpedgesfile, self.historyScores).run()
 		
 		linksfile =os.path.join(outputdir, sampleid +".links")
 		if opts.links and not os.path.exists(linksfile): 
@@ -223,10 +229,28 @@ class CreatePedgesFile(Target):
 		self.ignore_cn=ignore_cn	
 	
 	def run(self):
-		self.logToMaster("CreatePedgesFile\n") 
-		edges=score_edges_within_pevents(self.events, self.historyScores, self.totalp, self.ignore_cn)
+		self.logToMaster("CreatePedgesFile, ignore_cn: %s\n" % self.ignore_cn) 
+		sys.stderr.write("CreatePedgesFile, ignore_cn: %s\n" % self.ignore_cn) 
+		edges=score_edges_within_pevents(self.events, self.historyScores, self.totalp, ignore_cn=self.ignore_cn)
 		pickle.dump(edges, open(self.pedgesfile, 'wb'), pickle.HIGHEST_PROTOCOL) 
 	
+class CreateMergedEventsFile(Target): 
+	def __init__(self, events, outpfn, historyScores):
+		Target.__init__(self)
+		self.events=events
+		self.outpfn=outpfn
+		self.historyScores=historyScores
+	
+	def run(self):
+		self.logToMaster("CreateMergedEventsFile\n")
+		events=self.events
+		for e in events: 
+			e.unpack() 
+		mrged=histseg.merge_events_by_type(events, self.historyScores)
+		for e in mrged: 
+			e.trim()
+		pickle.dump(mrged, open(self.outpfn, 'wb'), pickle.HIGHEST_PROTOCOL)
+ 
 class CreateAnnotationFile(Target):
 	def __init__(self, evnts, tabixfile, annotationfile): 
 		Target.__init__(self)

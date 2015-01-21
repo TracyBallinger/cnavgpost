@@ -1,4 +1,4 @@
-#!/inside/home/common/bin/python2.7
+#!/usr/bin/env python 
 
 import sys, os
 import event_cycles_module as histseg

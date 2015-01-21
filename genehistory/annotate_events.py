@@ -44,7 +44,7 @@ def consolidate_genes(genelist):
 	return sorted(list(mynames))
 
 def annotate_events(allevents, mytabix): 
-	myannotations=[] # this will be a list of tuples
+	myannotations=[] # this will be a list of tuples: (eventid, comma-sep list of gene names)
 	for myevent in allevents: 
 		coords= merge_segments_into_regions(myevent)	
 		mygenes=[]
