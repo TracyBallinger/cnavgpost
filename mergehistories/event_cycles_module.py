@@ -656,11 +656,7 @@ def combine_history_statsfiles(cnavgdir):
 			mystats=np.zeros(((max(mysims)+1)*runlen, historystats.shape[1]+1), dtype=int)
 		hids=np.array(range(historystats.shape[0]))+ sim*Global_BINWIDTH
 		i = sim*runlen
-<<<<<<< HEAD
 		mystats[i:(i+historystats.shape[0]),:] = np.hstack((np.atleast_2d(hids).T, historystats))
-=======
-		mystats[i:i+historystats.shape[0],:] = np.hstack((np.atleast_2d(hids).T, historystats))
->>>>>>> 354718568d29786e105b3b1e631a1d0bdfb8a1a7
 	return mystats
 
 def get_historyScores(statsfile): 
