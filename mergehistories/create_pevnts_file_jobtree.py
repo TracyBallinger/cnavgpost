@@ -58,10 +58,10 @@ class CreatePevntsFile(Target):
 			evntsfile=os.path.join(opts.outputdir, "sim.%d.pevnts" % sim)
 			pevntsfiles.append(evntsfile)
 			# This will create a pevnts file that is sorted and untrimmed. 
-		#	self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
+	#		self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
 			MergeSingleBraneyFile(braneyfn, evntsfile, sim).run()
 			sys.stderr.write("finished Creating file %s\n" % (evntsfile))
-		#self.setFollowOnTarget(MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp))
+	#	self.setFollowOnTarget(MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp))
 		MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp).run()
 
 class MergePevntsFiles(Target): 
@@ -97,7 +97,7 @@ class MergeSingleBraneyFile(Target):
 			evnt.id = "%d.%d" % (idhist+(sim*histseg.Global_BINWIDTH), order)
 		sortedevents=sorted(events, key=lambda x:(x.segstr, x.cnval, x.prevals[0]))	
 		pickle.dump(sortedevents, open(self.evntsfile, 'wb'), pickle.HIGHEST_PROTOCOL)
-		sys.stderr.write("Created file %s\n" % (self.evntsfile))
+		self.logToMaster("Created file %s\n" % (self.evntsfile))
 
 def main(): 
 	parser = OptionParser(usage = "create_pevnts_file_jobtree.py --cnavgout cnavgdir --outputdir outputdir ... jobtree_options\n")

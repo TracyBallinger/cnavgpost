@@ -59,6 +59,7 @@ def consolidate_values_sumCN(edge1, edge2):
 			edge1.uppercosts.append(edge2.orders[i])
 			edge1.lowercosts.append(edge2.orders[i])
 
+
 def score_edges_within_pevents(allevents, historyScores, totalp, prev_error=0.05, ignore_cn=True): 
 	prevalence_error=prev_error
 	sys.stderr.write("number of events: %d\n" % (len(allevents)))
@@ -70,10 +71,6 @@ def score_edges_within_pevents(allevents, historyScores, totalp, prev_error=0.05
 			edge=copy.deepcopy(event)
 			edge.segs=[seg]
 			edge.make_segstr()
-			#if ignore_cn: 
-			#	(mysegstr, sign)=histseg.remove_signs_from_segstr(edge.segstr) 
-			#	edge.segstr="+/"+mysegstr
-			#	edge.cnval= sign*event.cnval
 			alledges.append(edge)
 	sortededges=sorted(alledges, key=lambda x: (x.segstr, x.cnval))
 	if ignore_cn: 

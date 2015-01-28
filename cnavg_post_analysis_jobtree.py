@@ -165,14 +165,13 @@ class CombineHistoryStatsfiles(Target):
 		if opts.simulation:
 			truefile=os.path.join(opts.cnavgout, "true.braney")
 			truehist=os.path.join(opts.cnavgout, "HISTORIES_0.braney") 
-			subprocess.call("grep -v ^$ %s | gzip > %s" % (truefile, truehist), shell=True)
+#			subprocess.call("grep -v ^$ %s | gzip > %s" % (truefile, truehist), shell=True)
+			subprocess.check_call("awk 'BEGIN{OFS=\"\\t\"}{if ($1==\"A\" && $9>1) $9=1; if($1 != \"A\" && $5>1) $5=1; print $0}' %s | sed 1d | gzip > %s" % (truefile, truehist), shell=True)
 			make_STATS_from_truebraney(truefile, os.path.join(opts.cnavgout, "HISTORY_STATS_0"))
 		statsfiles=glob.glob(self.cnavgout+"/"+"HISTORY_STATS*")
 		sys.stderr.write("statsfiles: %s\n" % (str(statsfiles)))
 		historyScores=histseg.combine_history_statsfiles(self.cnavgout)
 		np.savetxt(self.historystatsfile, historyScores, fmt='%d', delimiter='\t')	
-
-
 class SimAnalysisJob(Target): 
 	def __init__(self, peventsfile, trueID, historyScores, outname, outputdir, binwidth): 
 		Target.__init__(self)

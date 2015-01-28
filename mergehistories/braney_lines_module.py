@@ -76,11 +76,31 @@ class Braney_seg:
 				equal=False
 		return equal
 
-	def is_dup(self, other): 
+	def is_dup(self, other): #here we are assuming we know that the segments are in the same event and history. id self.historyid == other.historyid and self.order=other.order 
+		return (self.cycleorder == other.cycleorder)  
+
+	def is_dup_OLD(self, other): 
 		if (
-			((self.adj and other.adj) and (self.cnval == other.cnval) & (self.preval==other.preval)) 
-			and (((self.chr == other.chr2) and (self.start == other.end) & (self.end == other.start) & (self.st1 == other.st2) and (self.st2== other.st1)) 
-			or ((self.chr == other.chr) and (self.chr2==other.chr2) and (self.end==other.end) and (self.start == other.start) and (self.st1 == other.st1) and (self.st2 == other.st2)))): 
+			((self.adj and other.adj) and 
+			 (self.cnval == other.cnval) and 
+			 (self.preval==other.preval) and 
+			 (self.cycleorder == other.cycleorder))
+			and 
+			(((self.chr == other.chr2) and 
+			  (self.start == other.end) and 
+			  (self.end == other.start) and
+			  (self.st1 == other.st2) and 
+			  (self.st2== other.st1)) 
+				or 
+			 	((self.chr == other.chr) and 
+			 	(self.chr2==other.chr2) and 
+				(self.end==other.end) and 
+				(self.start == other.start) and 
+				(self.st1 == other.st1) and 
+				(self.st2 == other.st2)
+				)
+				)
+			): 
 			return True
 		else: 
 			return False
@@ -144,3 +164,32 @@ def get_total_history_prob(braneyfn):
 		mysum+= math.exp(-c)
 	return mysum
 
+def same_endpoints(seg1, seg2): 
+	return ((seg1.chr == seg2.chr and seg1.start ==seg2.start and 
+		seg1.chr2==seg2.chr2 and seg1.end ==seg2.end) or 
+		(seg1.chr == seg2.chr2 and seg1.start ==seg2.end and 
+		seg1.chr2==seg2.chr and seg1.end ==seg2.start)) 
+	
+def get_direction(firstseg, second, last): 
+	end_matches_second=False
+	end_matches_last=False
+	start_matches_second=False
+	start_matches_last=False
+	direction=0
+	if ((firstseg.chr2 == second.chr and firstseg.end == second.start) 
+		or (firstseg.chr2 == second.chr2 and firstseg.end == second.end)):
+		end_matches_second=True
+	if ((firstseg.chr2 == last.chr and firstseg.end == last.start)
+		or (firstseg.chr2 == last.chr2 and firstseg.end == last.end)):
+		end_matches_last=True
+	if ((firstseg.chr == second.chr and firstseg.start == second.start)
+		or (firstseg.chr == second.chr2 and firstseg.start == second.end)):
+		start_matches_second=True
+	if ((firstseg.chr == last.chr and firstseg.start == last.start)
+		or (firstseg.chr == last.chr2 and firstseg.start == last.end)):
+		start_matches_last=True
+	if end_matches_second and start_matches_last: 
+		direction=1
+	elif end_matches_last and start_matches_second: 
+		direction=-1
+	return direction

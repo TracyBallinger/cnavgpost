@@ -25,14 +25,15 @@ def analyze_simulation(edges, refhistoryid, historyScores, datout_fh, stats_fh, 
 	myhistScores=np.copy(historyScores)
 	myhistScores[np.where(historyScores[:,0] == refhistoryid),:]=0	 
 	totalp=histseg.compute_likelihood_histories(myhistScores[:,0], myhistScores)
-	TP=[0,0,0,0]
-	FP=[0,0,0,0]
-	TN=[0,0,0,0]
-	FN=[0,0,0,0]
+	TP=[0,0,0,0,0]
+	FP=[0,0,0,0,0]
+	TN=[0,0,0,0,0]
+	FN=[0,0,0,0,0]
 	FNedges=[]
 	types=histseg.Global_EVENTTYPES
 	myEdgeSimData=[] # a list of tuples (edge, isTrue, refpreval, reforder)
-	for edge in edges:
+	splitevents=histseg.split_cycles(edges)  #here edges are equivalent to events, and we need to split the event cycles that are figure 8s in order to make a fair comparison to the true history which doesn't allow figure 8s.  
+	for edge in splitevents: 
 		if not edge.histories: edge.histories=histseg.listout_ranges(edge.histRanges)
 		myedgesim=EdgeSimulationData(edge)
 		type=myedgesim.type

@@ -71,7 +71,6 @@ class Event:
 		else:
 			return False
 
-	
 	# update is done after equivalent events across multiple histories have been merged together.  Then the likelihood score and other stats for this event can be calculated. 	
 	def update(self, historyScores):
 		if self.segstr=="": 
@@ -109,8 +108,8 @@ class Event:
 	# This makes a string from the genomic coordinates of the event (event being a flow in the CN-AVG).  	
 	def make_segstr(self):
 		self.remove_dup_adj()
-		self.merge_adjacent_segs()
 		self.ordersegs()
+		self.merge_adjacent_segs()
 		mystr=""
 		mysegs=[]
 		for seg in self.segs: 
@@ -123,15 +122,33 @@ class Event:
 		self.segstr=mystr
 	
 	# This orders the segments of the event, putting the lowest genomic coordinate first and then going around the rearrangement cycle. 
-	def ordersegs(self): 
-		firstseg=sorted(self.segs, key=lambda x: (x.chr, x.start, x.chr2, x.end, x.st1, x.st2))[0]
-		sortedsegs=sorted(self.segs, key=lambda x: x.cycleorder)
-		ifirst=sortedsegs.index(firstseg)
-		second = sortedsegs[ifirst-1]
-		if ((firstseg.chr2 == second.chr and firstseg.end == second.start) or (firstseg.chr2 == second.chr2 and firstseg.end == second.end)): 
-			self.segs=sortedsegs[:(ifirst+1)][::-1]+sortedsegs[(ifirst+1):][::-1]
+	def ordersegs(self):
+		if len(self.segs)==1: #If there's only one segment, we are dealing with .edges and want them to have the lower coordinate first for consistency  
+			seg=self.segs[0]
+			if (seg.chr ==seg.chr2 and seg.start > seg.end) or (seg.chr>seg.chr2): 
+				seg.flip_ends()	
 		else: 
-			self.segs=sortedsegs[ifirst:]+sortedsegs[:ifirst]
+			firstseg=sorted(self.segs, key=lambda x: (x.chr, x.start, x.chr2, x.end, x.st1, x.st2))[0]
+			sortedsegs=sorted(self.segs, key=lambda x: x.cycleorder)
+			ifirst=sortedsegs.index(firstseg)
+			second = sortedsegs[ifirst-len(sortedsegs)+1]
+			last = sortedsegs[ifirst-1]
+			direction=get_direction(firstseg, second, last)
+			if direction==1: 
+				self.segs=sortedsegs[ifirst:]+sortedsegs[:ifirst]
+			elif direction==-1: 
+				self.segs=sortedsegs[:(ifirst+1)][::-1]+sortedsegs[(ifirst+1):][::-1]
+			else: #direction==0
+				self.segs=sortedsegs[ifirst:]+sortedsegs[:ifirst]
+				sys.stderr.write("Don't know which way to go for this event!\n%s" % str(self))
+				for s in self.segs: 
+					sys.stderr.write("%d\t%d\t%d\t%d\n" % (s.seg, s.start, s.end, s.cycleorder))
+			# want to flip the ends of segments so they read in order. 
+			firstseg=self.segs[0]
+			for seg in self.segs[1:]: 
+				if (firstseg.chr2== seg.chr2 and firstseg.end==seg.end): 
+					seg.flip_ends()
+				firstseg=seg
 	
 	def merge_adjacent_segs(self):
 		sortedsegs=sorted(self.segs, key=lambda x: x.cycleorder)
@@ -220,7 +237,7 @@ class Event:
 				addseg=True
 				if seg.adj: # if the braney_seg is an adjacency, see that it's not a duplicate of one that's been added already (there are two lines for every adjacency in .braney files)
 					for adj in nodup_segs: 	
-						addseg = (addseg and not seg.is_dup(adj))
+						addseg = (addseg and seg.cycleorder != adj.cycleorder) # seg.is_dup(adj))
 					if addseg: 
 						nodup_segs.append(seg)
 				else: nodup_segs.append(seg)
@@ -234,7 +251,6 @@ class Event:
 			self.make_segs_from_str()
 		for seg in self.segs: 
 			if seg.seg:
-				# remember for segments, the sign is opposite
 				if seg.cnval<0 and mytype != 2:
 					mytype=2
 				elif seg.cnval>0 and mytype != 1: 
@@ -337,8 +353,6 @@ def remove_signs_from_segstr(segstr):
 
 def sort_segs_in_cycle(seglist):
 	segs=sorted(seglist, key=lambda x: x.cycleorder)
-	for seg in segs: 
-		sys.stderr.write("seg is: %s" % (str(seg)))
 	currentseg=segs.pop(0)
 	myorderedsegs=[currentseg]
 	i=0
@@ -364,6 +378,41 @@ def sort_segs_in_cycle(seglist):
 			sys.stderr.write("seg is: %s" % (str(seg)))
 		sys.exit(-1)
 	return myorderedsegs
+
+# If the given event (aka cycle) has figure 8 structures, it will split the event into the constitutative smaller cycles. This is used to break figure 8s up in the simulations so that the events are comparable to the true history in which figure 8s aren't allowed.  
+def split_cycle(event):
+	if len(event.segs) == 0: 
+		event.make_segs_from_str()
+	for ia in xrange(len(event.segs)):
+		sega=event.segs[ia]
+		for ib in xrange(ia): 
+			segb=event.segs[ib]
+			if (ia - ib % 2 == 0 and sega.start == segb.start and sega.chr1 == segb.chr1): 
+				copy.deepcopy(event)	
+				newevent=copy.deepcopy(event)
+				newevent.segs=event.segs[ib:ia]
+				newevent.make_segstr()
+				newevent.count_discontsegs()
+				event.segs=event.segs[:ib]
+				newevent.make_segstr()
+				newevent.count_discontsegs()
+				event.segs=event.segs[:ib]
+				return[newevent, event]
+	return [event]
+
+def split_cycles(events): 
+	to_split=events
+	split=[]
+	while len(to_split)>0: 
+		cycle= to_split.pop()
+		decomposition=split_cycle(cycle)
+		if len(decomposition)==1: 
+			#cycle couldn't be broken up
+			split.extend(decomposition)
+		else: 
+			# cycle was broken up, and we need to check the components now
+			to_split.extend(decomposition)
+	return split 
 
 def listout_ranges(ranges): 
 	myilist=[]
@@ -396,7 +445,6 @@ def getRanges(vals):
 	rangeend=vals[-1]
 	myranges.append((rangestart, rangeend))
 	return myranges 
-	
 	
 def getIndRunCounts(histories):
 		binwidth=Global_BINWIDTH
@@ -504,6 +552,7 @@ def get_split_offs(finalevents):
 	return splitoffs 
 
 def split_off_duplicate(event):
+	hcounts=Counter(event.histories).items()
 	dups=[h for h, k in Counter(event.histories).items() if k>1]
 	if len(dups)>=1:
 		newevent=copy.deepcopy(event)
@@ -535,7 +584,7 @@ def unique_c_events_sorted_list(eventslist):
 	eventA=eventslist[0]
 	for eventB in eventslist[1:]:
 		if eventA == eventB:
-			eventA.add_Event_data(eventB) 
+			eventA.add_Event_data(eventB)
 		else: 
 			unique_events.append(eventA)
 			eventA=eventB
@@ -549,11 +598,11 @@ def make_events_from_braneyfn(braneyfn):
 	histid=0
 	myevents=[]
 	eventlines=[]
-	batchbreak=1000 # after x histories, stop and merge them together.  
-	breakcounter=0
+	batchbreak=3000 # after x histories, stop and merge them together.  
+	breakcounter=0	# use to keep track of the number of histories we've done
+	histcount=0  #count the number of histories we've done, and what is used as the history id for an event. 
 	eventcount=0
 	peventcount=0
-	histcount=0
 	for braneyline in braneyf: 
 		if braneyline.strip() != '':
 			braneyseg=Braney_seg(braneyline)
@@ -564,20 +613,20 @@ def make_events_from_braneyfn(braneyfn):
 			elif braneyseg.order == eventorder and braneyseg.historyid == histid:
 				eventlines.append(braneyseg)
 			elif braneyseg.order != eventorder or braneyseg.historyid != histid: 
+				myevent=Event(eventlines)
+				myevent.histories=[histcount]  #use histcount instead of the given history id because sometimes when cn-avg.py is run in -c mode histories are added to the end of .braney files, but the history ids start from 0 again. 
+				myevent.make_segstr()
+				myevents.append(myevent)
+				eventcount+=1
 				if histid != braneyseg.historyid: 
 					histcount +=1
 					breakcounter+=1
 					peventcount=eventcount
 					eventcount=0
-				myevent=Event(eventlines)
-				myevent.histories=[histcount]  #change this because sometimes when cn-avg.py is run in -c mode histories are added to the end of .braney files, but the history ids start from 0 again. 
-				myevent.make_segstr()
-				eventcount+=1
-				myevents.append(myevent)
 				if breakcounter >= batchbreak:
 					sortedevents=sorted(myevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))
 					uniqueevents=unique_c_events_sorted_list(sortedevents)
-			#		sys.stderr.write("%d\t%d\t%d\t%d\n" % (histid, peventcount, len(myevents), len(uniqueevents)))
+					sys.stderr.write("%d\t%d\t%d\t%d\n" % (histid, peventcount, len(myevents), len(uniqueevents)))
 					myevents=uniqueevents
 					breakcounter=0
 				eventlines=[braneyseg]
@@ -585,6 +634,7 @@ def make_events_from_braneyfn(braneyfn):
 				histid=braneyseg.historyid
 	# append the last event 
 	myevent=Event(eventlines)
+	myevent.histories=[histcount]  
 	myevent.make_segstr()
 	myevents.append(myevent)
 	sortedevents=sorted(myevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))
@@ -599,16 +649,36 @@ def get_events_from_cnavgdir(cnavgdir, historyScores, totalp=0):
 	for braneyfn in braneyfiles:
 		sim=int(re.match(".*HISTORIES_(\d+)\.braney", braneyfn).group(1))
 		events=make_events_from_braneyfn(braneyfn)
+		pickle.dump(events, open("sim.%d.pevnts" % sim, 'w'), pickle.HIGHEST_PROTOCOL) 
 		for evnt in events:
 			for i in xrange(len(evnt.histories)):
 				evnt.histories[i] = evnt.histories[i] + sim*Global_BINWIDTH
 			(idhist, order) = map(int, evnt.id.split('.'))
 			evnt.id = "%d.%d" % (idhist+(sim*Global_BINWIDTH), order)
 		sortedevents=sorted(allevents+events, key=lambda x:(x.segstr, x.cnval, x.prevals[0]))
+		mytest=open("sorted.evnts", 'w')
+		for e in sortedevents: 
+			mytest.write(str(e))
+		mytest.close()	
 		allevents=unique_c_events_sorted_list(sortedevents) 
 	finalevents=allevents
 	# check that the event doesn't need to be split again because it happens twice in some histories
+	f2=open("allevents.evnts", 'w')
+	for e in finalevents: 
+		e.update(historyScores)
+		f2.write(str(e))
+	f2.close()
 	splitoffs=get_split_offs(finalevents)
+	f1=open("splitoffs.evnts", 'w')
+	for e in splitoffs: 
+		e.update(historyScores)
+		f1.write(str(e))
+	f1.close()
+	f2=open("final.evnts", 'w')
+	for e in finalevents: 
+		e.update(historyScores)
+		f2.write(str(e))
+	f2.close()
 	finalevents+=splitoffs
 	if totalp==0:
 		# get the total likelihood of all events for computing marginal likelihoods
@@ -799,4 +869,6 @@ def merge_events_by_type(events, historyScores=None):
 	finalevents+=splitoffs
 	for e in finalevents: 
 		e.update(historyScores)
-	return(finalevents)	
+	return(finalevents)
+
+	
