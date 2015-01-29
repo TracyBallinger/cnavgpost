@@ -1,1 +1,1 @@
-#CNAVGpost, scripts for analyzing and merging the CN-AVG outputs
+#CNAVGpost, scripts for analyzing cn-avg outputs

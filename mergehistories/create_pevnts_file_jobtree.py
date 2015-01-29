@@ -15,7 +15,6 @@ from sonLib.bioio import logger
 import numpy as np
 import cnavgpost.mergehistories.event_cycles_module as histseg 
 
-
 #======== MAIN COMMAND ============
 class SetupCreatePevnts(Target): 
 	def __init__(self, options, outputdir): 
@@ -33,7 +32,12 @@ class SetupCreatePevnts(Target):
 		logger.info(cmd)
 		subprocess.call(cmd, shell=True)
 		# get historystats
-		historyScores=np.loadtxt(opts.historystatsfile, dtype=int)
+		historystatsfile=os.path.join(outputdir, "historystats.txt")
+		if not os.path.exists(historystatsfile): 
+			self.logToMaster("Creating historystats.txt...%s" % historystatsfile)
+			logger.info("historystatsfile: %s" % historystatsfile)
+			CombineHistoryStatsfiles(opts, historystatsfile).run()
+		historyScores=np.loadtxt(historystatsfile, dtype=int)
 		totalp=histseg.compute_likelihood_histories(historyScores[:,0], historyScores)
 		pevntsfile=os.path.join(outputdir, opts.sampleid + ".pevnts")
 		self.addChildTarget(CreatePevntsFile(pevntsfile, historyScores, totalp, opts))
@@ -58,11 +62,11 @@ class CreatePevntsFile(Target):
 			evntsfile=os.path.join(opts.outputdir, "sim.%d.pevnts" % sim)
 			pevntsfiles.append(evntsfile)
 			# This will create a pevnts file that is sorted and untrimmed. 
-	#		self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
-			MergeSingleBraneyFile(braneyfn, evntsfile, sim).run()
+			self.addChildTarget(MergeSingleBraneyFile(braneyfn, evntsfile, sim))
+	#		MergeSingleBraneyFile(braneyfn, evntsfile, sim).run()
 			sys.stderr.write("finished Creating file %s\n" % (evntsfile))
-	#	self.setFollowOnTarget(MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp))
-		MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp).run()
+		self.setFollowOnTarget(MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp))
+	#	MergePevntsFiles(pevntsfiles, self.pevntsfile, self.historyScores, self.totalp).run()
 
 class MergePevntsFiles(Target): 
 	def __init__(self, pevntsfiles, pevntsout, historyScores, totalp): 
@@ -99,13 +103,34 @@ class MergeSingleBraneyFile(Target):
 		pickle.dump(sortedevents, open(self.evntsfile, 'wb'), pickle.HIGHEST_PROTOCOL)
 		self.logToMaster("Created file %s\n" % (self.evntsfile))
 
+class CombineHistoryStatsfiles(Target):
+	def __init__(self, options, historystatsfile):
+		Target.__init__(self)
+		self.options=options
+		self.historystatsfile=historystatsfile
+		self.cnavgout=options.cnavgout
+
+	def run(self):
+		opts=self.options
+		if opts.simulation:
+			truefile=os.path.join(opts.cnavgout, "true.braney")
+			truehist=os.path.join(opts.cnavgout, "HISTORIES_0.braney")
+#			subprocess.call("grep -v ^$ %s | gzip > %s" % (truefile, truehist), shell=True)
+			subprocess.check_call("awk 'BEGIN{OFS=\"\\t\"}{if ($1==\"A\" && $9>1) $9=1; if($1 != \"A\" && $5>1) $5=1; print $0}' %s | sed 1d | gzip > %s" % (truefile, truehist), shell=True)
+			make_STATS_from_truebraney(truefile, os.path.join(opts.cnavgout, "HISTORY_STATS_0"))
+		statsfiles=glob.glob(self.cnavgout+"/"+"HISTORY_STATS*")
+		sys.stderr.write("statsfiles: %s\n" % (str(statsfiles)))
+		historyScores=histseg.combine_history_statsfiles(self.cnavgout)
+		np.savetxt(self.historystatsfile, historyScores, fmt='%d', delimiter='\t')
+
+
 def main(): 
 	parser = OptionParser(usage = "create_pevnts_file_jobtree.py --cnavgout cnavgdir --outputdir outputdir ... jobtree_options\n")
 	parser.add_option("--outputdir", dest="outputdir", help="where you want the created .pvents files to go", type="string")
 	parser.add_option("--cnavgout", dest="cnavgout", help="where the .braney files are.", type="string")
 	parser.add_option("--sampleid", dest="sampleid", help="The prefix of the .pevnts file.  ie sampleid.pevnts will be created.", type="string")
-	parser.add_option("--histstats", dest="historystatsfile", help="The historystats.txt file.", type="string")
 	parser.add_option("--binwidth", dest="binwidth", help="the multiplier for each history id to distinguish independent simulations.", type=int, default=histseg.Global_BINWIDTH)
+	parser.add_option("--simulation", dest="simulation", default=False, action="store_true", help="whether the data set is a simulated one or not.")
 	Stack.addJobTreeOptions(parser)
 	options, args = parser.parse_args()
 	histseg.Global_BINWIDTH=options.binwidth
