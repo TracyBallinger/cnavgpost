@@ -108,9 +108,9 @@ class Event:
 	# This makes a string from the genomic coordinates of the event (event being a flow in the CN-AVG).  	
 	def make_segstr(self):
 		self.remove_dup_adj()
-		self.ordersegs()
 		self.merge_adjacent_segs()
-		mystr=""
+		self.ordersegs()
+		#mystr=""
 		mysegs=[]
 		for seg in self.segs: 
 			if seg.cnval < 0: sign="-"
@@ -118,16 +118,17 @@ class Event:
 			if seg.adj: s="%s/%s:%d(%s)-%s:%d(%s)" % (sign, seg.chr, seg.start, seg.st1, seg.chr2, seg.end, seg.st2)	
 			else: s="%s/%s:%d-%d" % (sign, seg.chr, seg.start, seg.end)
 			mysegs.append(s)	
-		mystr=",".join(mysegs)
-		self.segstr=mystr
+#		mystr=",".join(mysegs)
+		self.segstr=",".join(mysegs) 
 	
 	# This orders the segments of the event, putting the lowest genomic coordinate first and then going around the rearrangement cycle. 
 	def ordersegs(self):
-		if len(self.segs)==1: #If there's only one segment, we are dealing with .edges and want them to have the lower coordinate first for consistency  
-			seg=self.segs[0]
+		#first order segs so the start is lower than the end 
+		for seg in self.segs: #If there's only one segment, we are dealing with .edges and want them to have the lower coordinate first for consistency  
 			if (seg.chr ==seg.chr2 and seg.start > seg.end) or (seg.chr>seg.chr2): 
 				seg.flip_ends()	
-		else: 
+		#If there's only one segment, we don't have the worry about ordering it.  
+		if len(self.segs)>1:  
 			firstseg=sorted(self.segs, key=lambda x: (x.chr, x.start, x.chr2, x.end, x.st1, x.st2))[0]
 			sortedsegs=sorted(self.segs, key=lambda x: x.cycleorder)
 			ifirst=sortedsegs.index(firstseg)
