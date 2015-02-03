@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import argparse 
 import os, sys
+import cnavgpost.mergehistories.event_cycles_module as histseg
 #from IPython.parallel.util import interactive 
 #from ../event_cycles_module import Global_EVENTTYPES
 Global_types=['any', 'amplification', 'deletion', 'adjacency']
@@ -17,10 +18,11 @@ def make_SimData_dict(simdir, edgeorevent, pvalcutoff=0, cutcost=False):
 	breaks=os.path.join(simdir, "breakpoints.txt")
 	histstats=os.path.join(simdir, "historystats.txt")
 	historyScores=np.loadtxt(histstats, dtype=int)
+	(runlen, nruns)=histseg.get_runlen(historyScores)
 	mysimdata['truescores']=np.mean(historyScores[0,1:3])
-	mysimdata['avescores']=np.mean(historyScores[1000:,1:3])
-	mysimdata['minscores']=np.min(np.mean(historyScores[1000:,1:3], axis=1))
-	mysimdata['maxscores']=np.max(historyScores[1000:,2])
+	mysimdata['avescores']=np.mean(historyScores[runlen:,1:3])
+	mysimdata['minscores']=np.min(np.mean(historyScores[runlen:,1:3], axis=1))
+	mysimdata['maxscores']=np.max(historyScores[runlen:,2])
 	nodes=np.loadtxt(breaks, usecols=(2,3,4,5), dtype=int)
 	mysimdata['truenodes']=sum(nodes[:,1]>0)
 	mysimdata['prednodes']=sum(nodes[:,0]>0)

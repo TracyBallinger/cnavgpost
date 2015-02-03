@@ -7,18 +7,20 @@ import cnavgpost.mergehistories.event_cycles_module as histseg
 import numpy as np
 import re
 
-def get_events_order_counts(myevents, outfh, simulation):
+def get_events_order_counts(myevents, outfn, simulation):
+	outfh=open(outfn, 'w')
 	for a in xrange(len(myevents)):
 		eventA = myevents[a]
 		for b in xrange(a+1, len(myevents)): 
 			eventB = myevents[b]
-			(ab, ba, truth) = get_order_counts(eventA, eventB, simulation) 
-			outfh.write("%s\t%s\t%d\t%d\t%d\t%s\t%s\n" % (eventA.id, eventB.id, ab, ba, truth, eventA.determineEventType(), eventB.determineEventType()))
+			(ab, ba, tot, truth) = get_order_counts(eventA, eventB, simulation) 
+			outfh.write("%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n" % (eventA.id, eventB.id, ab, ba, tot, truth, eventA.determineEventType(), eventB.determineEventType()))
+	outfh.close()
 
 def get_order_counts(eventA, eventB, simulation): 
 	ab=0
 	ba=0
-	truth=0
+	truth=-1
 	eventA.histories=histseg.listout_ranges(eventA.histRanges)	
 	eventB.histories=histseg.listout_ranges(eventB.histRanges)
 	aindices=[]
@@ -36,15 +38,18 @@ def get_order_counts(eventA, eventB, simulation):
 	if simulation and (0 in eventA.histories) and (0 in eventB.histories): 
 		atruth=eventA.orders[eventA.histories.index(0)]	
 		btruth=eventB.orders[eventB.histories.index(0)]
+		tot=tot-1 # don't count the simulated history
 		if atruth<btruth: 
-			truth=0
-			ab=ab-1 #don't count the simulated history from the data
-		else: 
 			truth=1
+			ab=ab-1 
+		elif btruth<atruth: 
+			truth=2
 			ba=ba-1
-	return (ab, ba, truth)	
+		else: 
+			truth=0
+	return (ab, ba, tot, truth)	
 
-def count_earlylate_with_correction(events, historyScores, outfh1, outfn2): 
+def count_earlylate_with_correction(events, historyScores, outfn1, outfn2): 
 	numhists=historyScores.shape[0]
 	mymax=len(events)+1
 	myranks=np.ones((numhists, len(events))) * mymax 
@@ -88,10 +93,12 @@ def count_earlylate_with_correction(events, historyScores, outfh1, outfn2):
 	tpearlycnts=np.sum(cTPranks<0.5, axis=0)
 	tplatecnts=np.sum(np.logical_and(cTPranks>0.5, cTPranks<=1), axis=0)
 	totcnts=np.sum(cranks<=1, axis=0)
+	outfh1=open(outfn, 'w')
 	outfh1.write("EventID\tEvent_type\tearly\tlate\tearlyTP\tlateTP\tTotal\tTruth\n")
 	for j in xrange(len(events)): 
 		e=events[j]
 		outfh1.write("%s\t%s\t%s\n" % (e.id, e.determineEventType(), "\t".join(map(str, (earlycnts[j], latecnts[j], tpearlycnts[j], tplatecnts[j], totcnts[j], truth[j])))))	
+	outfh1.close()
 
 
 def count_early_vs_late(event, historylengths, simulation):
@@ -131,21 +138,22 @@ def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn):
 				myevents.append(e)
 	else:
 		myevents=events
+	sys.stderr.write("There are %d events with pvalue gt %f\n" % (len(myevents), pvalcutoff))
+	for e in myevents: 
+		sys.stderr.write(e.id+"\n")
 	if True: 
 		if useEdges:  
-			outfh=open(os.path.join(outdir, "edges_ordcnts.dat"), 'w')
+			outfn=os.path.join(outdir, "edges_ordcnts.dat")
 		else: 
-			outfh=open(os.path.join(outdir, "event_ordcnts.dat"), 'w')
-		get_events_order_counts(myevents, outfh, simulation)
-		outfh.close()
+			outfn=os.path.join(outdir, "event_ordcnts.dat")
+		get_events_order_counts(myevents, outfn, simulation)
 	if False: 
 		if useEdges:  
-			outfh1=open(os.path.join(outdir, "edges_earlycnts.dat"), 'w')
+			outfn1=os.path.join(outdir, "edges_earlycnts.dat")
 		else:
-			outfh1=open(os.path.join(outdir, "event_earlycnts.dat"), 'w')
+			outfn1=os.path.join(outdir, "event_earlycnts.dat")
 		outfn2=os.path.join(outdir, "histlengths.dat")
-		count_earlylate_with_correction(myevents, historyScores, outfh1, outfn2) 
-		outfh1.close() 
+		count_earlylate_with_correction(myevents, historyScores, outfn1, outfn2) 
 		
 
 if __name__ == '__main__': 

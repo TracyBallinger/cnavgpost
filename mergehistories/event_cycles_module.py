@@ -16,6 +16,8 @@ Global_BINWIDTH=10000
 Global_MAXCOST=300 
 Global_K=0
 Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
+Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
+Global_SPLITCYCLES=True #do we want to split all figure 8 types into smaller cycles? 
 
 # an Event is made up of multiple Braneysegs and some extra info
 class Event:
@@ -110,7 +112,6 @@ class Event:
 		self.remove_dup_adj()
 		self.merge_adjacent_segs()
 		self.ordersegs()
-		#mystr=""
 		mysegs=[]
 		for seg in self.segs: 
 			if seg.cnval < 0: sign="-"
@@ -118,7 +119,6 @@ class Event:
 			if seg.adj: s="%s/%s:%d(%s)-%s:%d(%s)" % (sign, seg.chr, seg.start, seg.st1, seg.chr2, seg.end, seg.st2)	
 			else: s="%s/%s:%d-%d" % (sign, seg.chr, seg.start, seg.end)
 			mysegs.append(s)	
-#		mystr=",".join(mysegs)
 		self.segstr=",".join(mysegs) 
 	
 	# This orders the segments of the event, putting the lowest genomic coordinate first and then going around the rearrangement cycle. 
@@ -180,7 +180,6 @@ class Event:
 			else: 
 				i+=1
 		self.segs=sortedsegs
-	#	return sortedsegs
 
 	def make_segs_from_str(self):
 		mysegs=self.segstr.split(",")
@@ -332,26 +331,6 @@ class Event:
 		self.ordermean=waverage
 		self.ordersd=math.sqrt(var)
 
-def remove_signs_from_segstr(segstr):
-	locs=segstr.split(',')
-	newlocs=[]
-	for loc in locs:
-		m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
-		if m:
-			(chr1, s, st1, chr2, e, st2)=m.group(2,3,4,5,6,7)
-			newlocs.append("%s:%s(%s)-%s:%s(%s)" % m.group(2,3,4,5,6,7))
-			sign=m.group(1)
-		else:
-			m=re.search('([+|-])/(\w+):(-?\d+)-(\-?\d+)', loc)
-			if m:
-				(chr1, s, e) = m.group(2,3,4)
-				newlocs.append("%s:%s-%s" % m.group(2,3,4))
-				sign=m.group(1)
-		mysign=1
-		if sign=="-":
-			mysign=-1
-	return (",".join(newlocs), mysign)
-
 def sort_segs_in_cycle(seglist):
 	segs=sorted(seglist, key=lambda x: x.cycleorder)
 	currentseg=segs.pop(0)
@@ -380,24 +359,44 @@ def sort_segs_in_cycle(seglist):
 		sys.exit(-1)
 	return myorderedsegs
 
+def remove_signs_from_segstr(segstr):
+	locs=segstr.split(',')
+	newlocs=[]
+	for loc in locs:
+		m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
+		if m:
+			(chr1, s, st1, chr2, e, st2)=m.group(2,3,4,5,6,7)
+			newlocs.append("%s:%s(%s)-%s:%s(%s)" % m.group(2,3,4,5,6,7))
+			sign=m.group(1)
+		else:
+			m=re.search('([+|-])/(\w+):(-?\d+)-(\-?\d+)', loc)
+			if m:
+				(chr1, s, e) = m.group(2,3,4)
+				newlocs.append("%s:%s-%s" % m.group(2,3,4))
+				sign=m.group(1)
+		mysign=1
+		if sign=="-":
+			mysign=-1
+	return (",".join(newlocs), mysign)
+
+
 # If the given event (aka cycle) has figure 8 structures, it will split the event into the constitutative smaller cycles. This is used to break figure 8s up in the simulations so that the events are comparable to the true history in which figure 8s aren't allowed.  
 def split_cycle(event):
-	if len(event.segs) == 0: 
+	if len(event.segs) == 0:
 		event.make_segs_from_str()
 	for ia in xrange(len(event.segs)):
 		sega=event.segs[ia]
 		for ib in xrange(ia): 
 			segb=event.segs[ib]
-			if (ia - ib % 2 == 0 and sega.start == segb.start and sega.chr1 == segb.chr1): 
-				copy.deepcopy(event)	
+			if ((((ia - ib) % 2) == 0) and sega.start == segb.start and sega.chr == segb.chr): 
 				newevent=copy.deepcopy(event)
 				newevent.segs=event.segs[ib:ia]
 				newevent.make_segstr()
 				newevent.count_discontsegs()
-				event.segs=event.segs[:ib]
-				newevent.make_segstr()
-				newevent.count_discontsegs()
-				event.segs=event.segs[:ib]
+				event.segs=event.segs[:ib]+event.segs[ia:]
+				event.make_segstr()
+				event.count_discontsegs()
+				sys.stderr.write("splitting at %d, %d\nnewevent: %d oldevent: %d\n" % (ib, ia, len(newevent.segs), len(event.segs)))
 				return[newevent, event]
 	return [event]
 
@@ -580,7 +579,11 @@ def split_off_duplicate(event):
 	else: 
 		return []
 
-def unique_c_events_sorted_list(eventslist): 
+def unique_c_events_list(eventslist):
+	sys.stderr.write("There are %d events before splitting\n" % (len(eventslist))) 
+	if Global_SPLITCYCLES: 
+		eventslist=split_cycles(eventslist)
+	eventslist=sorted(eventslist, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))
 	unique_events=[]
 	eventA=eventslist[0]
 	for eventB in eventslist[1:]:
@@ -590,7 +593,13 @@ def unique_c_events_sorted_list(eventslist):
 			unique_events.append(eventA)
 			eventA=eventB
 	unique_events.append(eventA)
-	return unique_events
+	# check that the event doesn't need to be split again because it happens twice in some histories
+	finalevents=unique_events
+	splitoffs=get_split_offs(unique_events)
+	sys.stderr.write("There are %d splitoffs\n" % len(splitoffs))
+	if Global_SPLITOFFS: 
+		finalevents+=splitoffs
+	return finalevents 
 	
 def make_events_from_braneyfn(braneyfn): 
 	sys.stderr.write("working on %s\n" % braneyfn)
@@ -625,8 +634,7 @@ def make_events_from_braneyfn(braneyfn):
 					peventcount=eventcount
 					eventcount=0
 				if breakcounter >= batchbreak:
-					sortedevents=sorted(myevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))
-					uniqueevents=unique_c_events_sorted_list(sortedevents)
+					uniqueevents=unique_c_events_list(myevents)
 					sys.stderr.write("%d\t%d\t%d\t%d\n" % (histid, peventcount, len(myevents), len(uniqueevents)))
 					myevents=uniqueevents
 					breakcounter=0
@@ -638,8 +646,8 @@ def make_events_from_braneyfn(braneyfn):
 	myevent.histories=[histcount]  
 	myevent.make_segstr()
 	myevents.append(myevent)
-	sortedevents=sorted(myevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))
-	uniqueevents=unique_c_events_sorted_list(sortedevents)
+	sys.stderr.write("num_events: %d\n" % (len(myevents)))
+	uniqueevents=unique_c_events_list(myevents)
 	sys.stderr.write("num_events: %d, filtered: %d\n" % (len(myevents), len(uniqueevents)))
 	return (uniqueevents)
 
@@ -656,34 +664,11 @@ def get_events_from_cnavgdir(cnavgdir, historyScores, totalp=0):
 				evnt.histories[i] = evnt.histories[i] + sim*Global_BINWIDTH
 			(idhist, order) = map(int, evnt.id.split('.'))
 			evnt.id = "%d.%d" % (idhist+(sim*Global_BINWIDTH), order)
-		sortedevents=sorted(allevents+events, key=lambda x:(x.segstr, x.cnval, x.prevals[0]))
-		mytest=open("sorted.evnts", 'w')
-		for e in sortedevents: 
-			mytest.write(str(e))
-		mytest.close()	
-		allevents=unique_c_events_sorted_list(sortedevents) 
+		allevents=unique_c_events_list(allevents+events) 
 	finalevents=allevents
-	# check that the event doesn't need to be split again because it happens twice in some histories
-	f2=open("allevents.evnts", 'w')
-	for e in finalevents: 
-		e.update(historyScores)
-		f2.write(str(e))
-	f2.close()
-	splitoffs=get_split_offs(finalevents)
-	f1=open("splitoffs.evnts", 'w')
-	for e in splitoffs: 
-		e.update(historyScores)
-		f1.write(str(e))
-	f1.close()
-	f2=open("final.evnts", 'w')
-	for e in finalevents: 
-		e.update(historyScores)
-		f2.write(str(e))
-	f2.close()
-	finalevents+=splitoffs
 	if totalp==0:
 		# get the total likelihood of all events for computing marginal likelihoods
-		totalp=compute_likelihood_histories(historyScores[:,0], historyScores)
+		totalp=compute_totalp(historyScores)
 	for evnt in finalevents:
 		evnt.update(historyScores)
 		evnt.likelihood=compute_likelihood_histories(evnt.histories, historyScores, totalp)
@@ -694,11 +679,8 @@ def merge_pevnts_files(pevntsfiles, outputfile, historyScores, totalp):
 	allevents=pickle.load(open(pevntsfiles[0], 'rb'))
 	for pevntsfile in pevntsfiles[1:]:
 		addinevents=pickle.load(open(pevntsfile, 'rb'))
-		allevents=unique_c_events_sorted_list(sorted(allevents+addinevents, key=lambda x: (x.segstr, x.cnval, x.prevals[0])))
+		allevents=unique_c_events_list(allevents+addinevents)
 		sys.stderr.write("addinevents %d, allevents: %d\n" % (len(addinevents), len(allevents)))
-	splitoffs=get_split_offs(allevents)
-	sys.stderr.write("There are %d splitoffs\n" % len(splitoffs))
-	allevents+=splitoffs
 	for evnt in allevents:
 		evnt.update(historyScores)
 		evnt.likelihood=compute_likelihood_histories(evnt.histories, historyScores, totalp)
@@ -737,11 +719,17 @@ def get_historyScores(statsfile):
 	return historyScores
 
 def compute_likelihood_histories(historyids, historyScores, denom=1):
+	historyids=np.unique(historyids)
 	hindices = historyids_to_indices(historyids, historyScores)
 	costsarray=np.mean(historyScores[hindices,1:3], axis=1)
 	maskedcosts=np.ma.masked_where(costsarray==0, costsarray)
 	x=np.sum(np.exp(-1*Global_K*maskedcosts))
 	return x/float(denom)
+
+def compute_totalp(historyScores): 
+	allh=historyScores[:,1]>0
+	totalp=compute_likelihood_histories(historyScores[allh,0], historyScores)
+	return totalp
 
 def historyids_to_indices(historyids, historyScores): 
 	hids=np.array(historyids, dtype=int)
@@ -750,6 +738,11 @@ def historyids_to_indices(historyids, historyScores):
 	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1
 	newi=iter+sim*runlen
 	return newi
+
+def get_runlen(historyScores): 
+	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1
+	nruns=historyScores.shape[0]/runlen
+	return(runlen, nruns)
 
 def get_breakpoints(events, historyid): 
 	breaklocs={}
@@ -853,6 +846,8 @@ def merge_events(events):
 	return newevent
 
 def merge_events_by_type(events, historyScores=None): 
+	if Global_SPLITCYCLES: 
+		events=split_cycles(events)
 	 #order events by segstr
 	sevents=sorted(events, key=lambda x: (x.segstr))
 	unique_events=[]
@@ -867,7 +862,8 @@ def merge_events_by_type(events, historyScores=None):
 	finalevents=unique_events
 	splitoffs=get_split_offs(finalevents)
 	sys.stderr.write("There are %d splitoffs\n" % len(splitoffs))
-	finalevents+=splitoffs
+	if Global_SPLITOFFS: 
+		finalevents+=splitoffs
 	for e in finalevents: 
 		e.update(historyScores)
 	return(finalevents)

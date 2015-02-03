@@ -48,7 +48,6 @@ class Setup(Target):
 			self.logToMaster("Creating historystats.txt...%s" % historystatsfile) 
 			logger.info("historystatsfile: %s" % historystatsfile)
 			pevntsjobtree.CombineHistoryStatsfiles(opts, historystatsfile).run()
-		
 		self.historyScores=np.loadtxt(historystatsfile, dtype=int)
 		self.totalp=histseg.compute_likelihood_histories(self.historyScores[:,0], self.historyScores)
 		logger.info("Global_BINWIDTH: %d" % histseg.Global_BINWIDTH)
@@ -58,8 +57,38 @@ class Setup(Target):
 		if opts.pevnts or not os.path.exists(pevntsfile): 
 			self.logToMaster("Creating pevntsfile...%s" % pevntsfile) 
 			logger.info("pevntsfile: %s" % pevntsfile)
-			pevntsjobtree.CreatePevntsFile(pevntsfile, self.historyScores, self.totalp, opts).run()
+			self.addChildTarget(pevntsjobtree.CreatePevntsFile(pevntsfile, self.historyScores, self.totalp, opts))
+		self.setFollowOnTarget(DoAnalysisOfMergedEvents(opts))
 
+
+class DoAnalysisOfMergedEvents(Target):
+	def __init__(self, options): 
+		Target.__init__(self)
+		self.options=options
+		self.events=[]
+		self.totalp=0
+		self.edges=[]
+		self.historyScores=[]	
+	
+	def run(self):
+		self.logToMaster("Setting up...") 
+		opts=self.options
+		histseg.Global_BINWIDTH=opts.binwidth
+		sampleid=opts.sampleid
+		outputdir=opts.outputdir
+	
+		historystatsfile=os.path.join(outputdir, "historystats.txt")
+		if not os.path.exists(historystatsfile): 
+			self.logToMaster("Creating historystats.txt...%s" % historystatsfile) 
+			logger.info("historystatsfile: %s" % historystatsfile)
+			pevntsjobtree.CombineHistoryStatsfiles(opts, historystatsfile).run()
+		self.historyScores=np.loadtxt(historystatsfile, dtype=int)
+		self.totalp=histseg.compute_likelihood_histories(self.historyScores[:,0], self.historyScores)
+		#check that the *.pevnts file exists. 
+		pevntsfile=os.path.join(outputdir, opts.sampleid + ".pevnts")
+		if not os.path.exists(pevntsfile): 
+			sys.exit("The required %s file does not exist." % pevntsfile)
+	
 		pedgesfile=os.path.join(outputdir, sampleid + ".pedgs")
 		if opts.pedges or not os.path.exists(pedgesfile):
 			self.logToMaster("Creating pedgesfile...%s" % pedgesfile) 
@@ -172,18 +201,6 @@ class SimAnalysisJob(Target):
 		histseg.Global_BINWIDTH=self.binwidth
 		analyze_simulation.analyze_simulation(self.events, self.trueID, self.historyScores, datout, statout, breaksfile)
 
-def make_STATS_from_truebraney(truefile, statsfn):
-	cost=subprocess.check_output("grep ^A %s | head -1 | cut -f15,16" % (truefile), shell=True)
-	costs=cost.strip().split()
-	sys.stderr.write
-	errorcost=0
-	length=subprocess.check_output("grep ^A %s | cut -f14 | sort -u | wc -l" % (truefile), shell=True).strip()
-	medianLen=0
-	maxLen=0
-	fout=open(statsfn, 'w')
-	fout.write("%s\t%s\t%d\t%s\t%d\t%d\n" % (costs[0], costs[1], errorcost, length, medianLen, maxLen))
-	fout.close()
-
 class CreateLinksFile(Target): 
 	def __init__(self, pevntsfile, linksfile, totalp): 
 		Target.__init__(self)
@@ -211,7 +228,6 @@ class CreatePedgesFile(Target):
 	
 	def run(self):
 		self.logToMaster("CreatePedgesFile, ignore_cn: %s\n" % self.ignore_cn) 
-		sys.stderr.write("CreatePedgesFile, ignore_cn: %s\n" % self.ignore_cn) 
 		edges=score_edges_within_pevents(self.events, self.historyScores, self.totalp, ignore_cn=self.ignore_cn)
 		pickle.dump(edges, open(self.pedgesfile, 'wb'), pickle.HIGHEST_PROTOCOL) 
 	

@@ -32,8 +32,7 @@ def analyze_simulation(edges, refhistoryid, historyScores, datout_fh, stats_fh, 
 	FNedges=[]
 	types=histseg.Global_EVENTTYPES
 	myEdgeSimData=[] # a list of tuples (edge, isTrue, refpreval, reforder)
-	splitevents=histseg.split_cycles(edges)  #here edges are equivalent to events, and we need to split the event cycles that are figure 8s in order to make a fair comparison to the true history which doesn't allow figure 8s.  
-	for edge in splitevents: 
+	for edge in edges: 
 		if not edge.histories: edge.histories=histseg.listout_ranges(edge.histRanges)
 		myedgesim=EdgeSimulationData(edge)
 		type=myedgesim.type

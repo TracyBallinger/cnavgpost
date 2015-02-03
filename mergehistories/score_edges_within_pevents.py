@@ -7,59 +7,25 @@ import cPickle as pickle
 import cnavgpost.mergehistories.event_cycles_module as histseg
 import argparse
 import numpy as np
+import re
 bindir="/inside/home/tballing/cnavg-study/cnavgmbin"
 
-def unique_c_edges(sorted_edges): 
+def unique_loc_edges(alledges): 
+	for e in alledges: 
+		e.segstr=histseg.remove_signs_from_segstr(e.segstr)[0]
+		e.cnval=0 #change this to 0 because it will be uninformative in this context
+	sortededges=sorted(alledges, key=lambda x: (x.segstr)) 
 	unique_edges=[]
-	prevedge=sorted_edges[0]
-	for edge in sorted_edges[1:]: 
-		if edge == prevedge: 
-			consolidate_values(prevedge, edge) #This will modify prevedge
+	prevedge=sortededges[0]
+	for edge in sortededges[1:]:
+		if prevedge.segstr==edge.segstr: 
+			prevedge.merge_Event_data(edge) #modifies prevedge
 		else: 
 			unique_edges.append(prevedge)
 			prevedge=edge
-	unique_edges.append(prevedge)
-	return unique_edges
-
-def consolidate_values(edge1, edge2): 
-	for i in xrange(len(edge2.histories)):
-		hid = edge2.histories[i] 
-		if hid not in edge1.histories: 
-			edge1.histories.append(hid)
-			edge1.prevals.append(edge2.prevals[i])
-			edge1.orders.append(edge2.orders[i])
-			edge1.uppercosts.append(edge2.orders[i])
-			edge1.lowercosts.append(edge2.orders[i])
-
-def unique_loc_edges(sorted_edges): 
-	unique_edges=[]
-	prevedge=sorted_edges[0]
-	prevsegstr=prevedge.segstr
-#	(prevsegstr, sign)=histseg.remove_signs_from_segstr(prevedge.segstr)
-	for edge in sorted_edges[1:]:
-		#(mysegstr, sign)=histseg.remove_signs_from_segstr(edge.segstr) 
-		mysegstr=edge.segstr
-		if mysegstr== prevsegstr: 
-			consolidate_values_sumCN(prevedge, edge) #This will modify prevedge
-		else: 
-			unique_edges.append(prevedge)
-			prevedge=edge
-			prevsegstr=mysegstr
 	unique_edges.append(prevedge)
 	return unique_edges
 	
-def consolidate_values_sumCN(edge1, edge2):
-	edge1.cnval+=edge2.cnval 
-	for i in xrange(len(edge2.histories)):
-		hid = edge2.histories[i] 
-		if hid not in edge1.histories: 
-			edge1.histories.append(hid)
-			edge1.prevals.append(edge2.prevals[i])
-			edge1.orders.append(edge2.orders[i])
-			edge1.uppercosts.append(edge2.orders[i])
-			edge1.lowercosts.append(edge2.orders[i])
-
-
 def score_edges_within_pevents(allevents, historyScores, totalp, prev_error=0.05, ignore_cn=True): 
 	prevalence_error=prev_error
 	sys.stderr.write("number of events: %d\n" % (len(allevents)))
@@ -72,15 +38,14 @@ def score_edges_within_pevents(allevents, historyScores, totalp, prev_error=0.05
 			edge.segs=[seg]
 			edge.make_segstr()
 			alledges.append(edge)
-	sortededges=sorted(alledges, key=lambda x: (x.segstr, x.cnval))
-	if ignore_cn: 
-		unique_edges=histseg.merge_events_by_type(sortededges)  #unique_loc_edges(sortededges)
+	if ignore_cn:
+		unique_edges=unique_loc_edges(alledges)
 	else: 
-		unique_edges=histseg.unique_c_events_sorted_list(sortededges)
+		unique_edges=histseg.unique_c_events_list(alledges)
 		splitoffs=histseg.get_split_offs(unique_edges)
 		unique_edges+=splitoffs
+		sys.stderr.write("number of splitoffs: %d\n number of edges %d" % (len(splitoffs), len(unique_edges)))
 	sys.stderr.write("totalp: %s\n" % (str(totalp)))
-	sys.stderr.write("number of edges is: %d\n" % (len(unique_edges)))
 	for edge in unique_edges: 
 		edge.update(historyScores)
 		edge.likelihood=histseg.compute_likelihood_histories(edge.histories, historyScores, totalp)

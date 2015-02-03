@@ -42,7 +42,6 @@ class SetupCreatePevnts(Target):
 		pevntsfile=os.path.join(outputdir, opts.sampleid + ".pevnts")
 		self.addChildTarget(CreatePevntsFile(pevntsfile, historyScores, totalp, opts))
 
-
 class CreatePevntsFile(Target):
 	def __init__(self, pevntsfile, historyScores, totalp, options):
 		Target.__init__(self)
@@ -122,6 +121,18 @@ class CombineHistoryStatsfiles(Target):
 		sys.stderr.write("statsfiles: %s\n" % (str(statsfiles)))
 		historyScores=histseg.combine_history_statsfiles(self.cnavgout)
 		np.savetxt(self.historystatsfile, historyScores, fmt='%d', delimiter='\t')
+
+
+def make_STATS_from_truebraney(truefile, statsfn):
+	cost=subprocess.check_output("grep ^A %s | head -1 | cut -f15,16" % (truefile), shell=True)
+	costs=cost.strip().split()
+	errorcost=0
+	length=subprocess.check_output("grep ^A %s | cut -f14 | sort -u | wc -l" % (truefile), shell=True).strip()
+	medianLen=0
+	maxLen=0
+	fout=open(statsfn, 'w')
+	fout.write("%s\t%s\t%d\t%s\t%d\t%d\n" % (costs[0], costs[1], errorcost, length, medianLen, maxLen))
+	fout.close()
 
 
 def main(): 

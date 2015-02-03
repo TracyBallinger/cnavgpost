@@ -30,28 +30,27 @@ class Setup(Target):
 			statsfn=os.path.join(cnavgpost, "historystats.txt")
 			outputdir=cnavgpost
 			pevntsfile=os.path.join(outputdir, sampleid + ".pevnts")	
-			self.addChildTarget(RunEventOrderAnalysis(sampleid, cnavgpost, statsfn, opts.edges, opts.cutoff, opts.simulation))	
+			self.addChildTarget(RunEventOrderAnalysis(sampleid, cnavgpost, statsfn, opts)) 
 
 class RunEventOrderAnalysis(Target): 
-	def __init__(self, sampleid, cnavgpost, statsfn, useEdges, cutoff, sim): 
+	def __init__(self, sampleid, cnavgpost, statsfn, options): 
 		Target.__init__(self)
 		self.sampleid=sampleid
 		self.cnavgpost=cnavgpost
 		self.statsfn=statsfn
-		self.useEdges=useEdges
-		self.cutoff=cutoff
-		self.simulation=sim
+		self.opts=options
 	
 	def run(self):
-		pvalcutoff=self.cutoff 
+		opts=self.opts
+		pvalcutoff=opts.cutoff 
 		outdir=self.cnavgpost
-		useEdges=self.useEdges
+		useEdges=opts.edges
 		if useEdges: 
 			pevntsfile=os.path.join(outdir, "%s.pedgs" % self.sampleid)
-			outfh=open(os.path.join(outdir, "edges_ordcnts.dat"), 'w')
+			outfn=os.path.join(outdir, "edges_ordcnts.dat") 
 		else: 
 			pevntsfile=os.path.join(outdir, "%s.pevnts" % self.sampleid)
-			outfh=open(os.path.join(outdir, "events_ordcnts.dat"), 'w')
+			outfn=os.path.join(outdir, "events_ordcnts.dat")
 		# filter the events
 		events=pickle.load(open(pevntsfile, 'rb'))
 		myevents=[]
@@ -61,16 +60,15 @@ class RunEventOrderAnalysis(Target):
 					myevents.append(e)
 		else:
 			myevents=events
-		self.addChildTarget(ordcnts.get_events_order_counts(myevents, outfh, self.simulation))
-		outfh.close()
+		self.logToMaster("There are %d events with pvalue gt %f\n" % (len(myevents), pvalcutoff))
+		ordcnts.get_events_order_counts(myevents, outfn, opts.simulation)
 		if False: #I'm still debugging this so it's not included
 			if useEdges:
-				outfh1=open(os.path.join(outdir, "edges_earlycnts.dat"), 'w')
+				outfn1=os.path.join(outdir, "edges_earlycnts.dat")
 			else:
-				outfh1=open(os.path.join(outdir, "event_earlycnts.dat"), 'w')
+				outfn1=os.path.join(outdir, "event_earlycnts.dat")
 			outfn2=os.path.join(outdir, "histlengths.dat")
-			self.addChildTarget(ordcnts.count_earlylate_with_correction(myevents, historyScores, outfh1, outfn2))
-			outfh1.close()
+			self.addChildTarget(ordcnts.count_earlylate_with_correction(myevents, historyScores, outfn1, outfn2))
 
 
 class PrintEventCountsPerHistory(Target): 
@@ -82,9 +80,10 @@ class PrintEventCountsPerHistory(Target):
 
 	def run(self): 
 		opts=self.opts
-		braneyfiles=glob.glob(os.path.join(opts.cnavgout, self.sampleid, "HISTORIES_*.braney"))
-		self.logToMaster("%s, braneyfiles: %s\n" % (opts.cnavgout, braneyfiles))
-		sys.stderr.write("%s, braneyfiles: %s\n" % (opts.cnavgout, braneyfiles))
+		cnavgout="/bigdrive/intsims/cnavgout"
+		braneyfiles=glob.glob(os.path.join(cnavgout, self.sampleid, "HISTORIES_*.braney"))
+		self.logToMaster("%s, braneyfiles: %s\n" % (cnavgout, braneyfiles))
+		sys.stderr.write("%s, braneyfiles: %s\n" % (cnavgout, braneyfiles))
 		runlens=[]
 		myarrays=[]
 		mysims=[]
@@ -112,8 +111,7 @@ class PrintEventCountsPerHistory(Target):
 	
 
 def main():
-	#parser = OptionParser(usage = "Right now the do_something is to count the number of events per history from the .braney files and print it to a history_eventcounts.txt file.") 
-	parser = OptionParser(usage = "Right now the do_something is to run get_event_order_counts on the list of samples in samplelist.") 
+	parser = OptionParser(usage = "run get_event_order_counts on the list of samples in samplelist.") 
 	parser.add_option("--samplelist", dest="samplelist", help="The list of CNAVG outputs and sample ids. Should have the form <directory><ID>.")
 	parser.add_option("--edges", dest="edges", action='store_true', help="Do the analysis using the .pedges instead of .pevnts files.")
 	parser.add_option('--simulation', dest="simulation", action='store_true', help='whether the history is a simulation')

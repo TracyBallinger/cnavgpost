@@ -48,7 +48,7 @@ class Braney_seg:
 			self.lowerEventCost=int(data[17]) 
 			self.ptrid=data[18]
 			self.order=float(data[13])		
-		self.order_ends()
+	#	self.order_ends()
 
 	def __str__(self):
 		if self.seg:
