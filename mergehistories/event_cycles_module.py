@@ -17,7 +17,7 @@ Global_MAXCOST=300
 Global_K=0
 Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
 Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
-Global_SPLITCYCLES=True #do we want to split all figure 8 types into smaller cycles? 
+Global_SPLITCYCLES=False #do we want to split all figure 8 types into smaller cycles? 
 
 # an Event is made up of multiple Braneysegs and some extra info
 class Event:
