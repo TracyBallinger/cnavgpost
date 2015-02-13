@@ -70,8 +70,12 @@ class RunCnavgSimulation(Target):
 		file.close()
 		os.chdir(cwd)
 		
-		for j in xrange(1,(opts.runs+1)): 
-			self.addChildTarget(RunCnavgForSim(simoutdir, j, opts))
+		if opts.timeshuffle: 
+			for j in xrange(1,(opts.runs+1)): 
+				self.addChildTarget(RunShuffleForSim(simoutdir, j, opts))
+		else: 			
+			for j in xrange(1,(opts.runs+1)): 
+				self.addChildTarget(RunCnavgForSim(simoutdir, j, opts))
 
 class RunCnavgForSim(Target):
 	def __init__(self, simoutdir, j, options): 
@@ -94,6 +98,28 @@ class RunCnavgForSim(Target):
 				sys.exit("cn-avg.py did not complete.\n")
 		os.chdir(cwd)
 
+class RunShuffleForSim(Target):
+	def __init__(self, simoutdir, j, options): 
+		Target.__init__(self)
+		self.simoutdir=simoutdir
+		self.j=j
+		self.options=options
+
+	def run(self):
+		cwd=os.getcwd()
+		os.chdir(self.simoutdir)
+		opts=self.options
+		if self.options.integer: 
+			self.logToMaster("running:\n%s/cn-avg-timeshuffle.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg-timeshuffle.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) !=0: 
+				sys.exit("cn-avg-timeshuffle.py did not complete.\n")
+		else: 
+			self.logToMaster("running:\n%s/cn-avg-timeshuffle.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg-timeshuffle.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) != 0: 
+				sys.exit("cn-avg-timeshuffle.py did not complete.\n")
+		os.chdir(cwd)
+
+
 def add_simulation_options(parser): 
 	group = OptionGroup(parser, "Make Simulation Options")
 	group.add_option("--specfile", dest='specfile', help='A file specifying the number of blocks and events to put in each simulation', type='string')
@@ -103,6 +129,7 @@ def add_simulation_options(parser):
 	group.add_option("--id", dest='id', type="int", help="an id for the simulation runs.")
 	group.add_option("--steps", dest='steps', type="int", default=1000, help="The number of steps per iteration to run.")
 	group.add_option("--runs", dest='runs', type="int", default=10, help="The number of runs per sample to do.")
+	group.add_option("--timeshuffle", dest='timeshuffle', default=False, action="store_true", help="run cn-avg-timeshuffle.py instead of cn-avg.py")
 	parser.add_option_group(group)	
 
 def main(): 

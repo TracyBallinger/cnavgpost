@@ -7,75 +7,108 @@ import cPickle as pickle
 import argparse
 import numpy as np
 import re
+import cnavg.linear_decomp as linear_decomp
 
 class EdgeSimulationData:
-	def __init__(self, edge): 
-		self.edge=edge
-		self.isTrue=0  # this will be 0 if edge is FP, 1 if TP, 2 if TN, -1 if FN 
+	def __init__(self, event, histScores, totalp, refhistoryid=0): 
+		self.event=event
+		self.type=event.determineEventType()
+		(segstr, self.sign)=histseg.remove_signs_from_segstr(event.segstr)
+		self.cnval=event.cnval*self.sign		
+		self.isTrue=0  # this will be 0 if edge is FP, 1 if TP, 2 if TN, -1 if FN, and 3 if it's a linear combination of true events.  
 		self.refindex=-1
 		self.refpreval=-1
 		self.reforder=-1
 		self.avecost=-1
-		self.type=edge.determineEventType()
-		(self.segstr, self.sign)=histseg.remove_signs_from_segstr(edge.segstr)
-		self.cnval=edge.cnval*self.sign		
+		if refhistoryid in event.histories: 
+			self.update_for_true_event(event, refhistoryid, histScores, totalp)
+			if len(event.histories)>1:
+				self.isTrue=1
+			else: 
+				self.isTrue=-1
+		else: 
+			self.isTrue=0
+			event.likelihood=histseg.compute_likelihood_histories(event.histories, histScores, totalp)
+			
 
-def analyze_simulation(edges, refhistoryid, historyScores, datout_fh, stats_fh, breaks_fh):
+	def __str__(self):
+		event=self.event 
+		prevals=",".join(map(str, [self.refpreval, event.prevalmean, event.prevalsd]))
+		orders=",".join(map(str, [self.reforder, event.ordermean, event.ordersd]))
+		length=event.get_Event_length()
+		mystr="\t".join(map(str, [event.id, histseg.Global_EVENTTYPES[self.type], self.avecost, event.likelihood, event.cnval, self.isTrue, length, prevals, orders, event.numhists])) + "\n"	
+		return mystr
+
+	def update_for_true_event(self, event, refhistoryid, histScores, totalp):  
+		refindex=event.histories.index(refhistoryid)
+		# need to pop off the simulated history values and recompute the likelihood for the event
+		if len(event.histories)>1: 
+			event.histories.pop(refindex)
+			refpreval=event.prevals.pop(refindex)
+			reforder=event.orders.pop(refindex)
+			event.likelihood = histseg.compute_likelihood_histories(event.histories, histScores, totalp)	
+			event.numhists=len(event.histories)
+			event.compute_timing_wmeansd(histScores)
+			event.histories.insert(refindex, refhistoryid)	# reinsert these 
+			event.prevals.insert(refindex, refpreval)	
+			event.orders.insert(refindex, reforder)	
+			upperc=event.uppercosts.pop(refindex)
+			lowerc=event.lowercosts.pop(refindex)
+			avecost=np.mean(np.array(event.uppercosts+event.lowercosts))
+			event.uppercosts.insert(refindex, upperc)	
+			event.lowercosts.insert(refindex, lowerc)
+		else: 
+			refpreval=event.prevals[refindex]
+			reforder = event.orders[refindex]
+			avecost=np.mean(np.array(event.uppercosts+event.lowercosts))
+			event.likelihood=0
+		(self.refpreval, self.reforder, self.avecost) = (refpreval, reforder, avecost)
+
+def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh, breaks_fh):
 	#make the cost of the refhistoryid 0 so that is doesn't get included in the likelihood calculation 
 	myhistScores=np.copy(historyScores)
 	myhistScores[np.where(historyScores[:,0] == refhistoryid),:]=0	 
 	totalp=histseg.compute_likelihood_histories(myhistScores[:,0], myhistScores)
-	TP=[0,0,0,0,0]
-	FP=[0,0,0,0,0]
-	TN=[0,0,0,0,0]
-	FN=[0,0,0,0,0]
-	FNedges=[]
+	sys.stderr.write("totalp is %f\n" % totalp)
 	types=histseg.Global_EVENTTYPES
-	myEdgeSimData=[] # a list of tuples (edge, isTrue, refpreval, reforder)
-	for edge in edges: 
-		if not edge.histories: edge.histories=histseg.listout_ranges(edge.histRanges)
-		myedgesim=EdgeSimulationData(edge)
-		type=myedgesim.type
-		if refhistoryid in edge.histories: 
-			refindex=edge.histories.index(refhistoryid)
-			myedgesim.refindex=refindex
-			if len(edge.histories)>1:
-				TP[0]+=1
-				TP[type]+=1
-				myedgesim.isTrue=1
-				edge.histories.pop(refindex)
-				myedgesim.refpreval=edge.prevals.pop(refindex)
-				myedgesim.reforder=edge.orders.pop(refindex)
-				edge.likelihood = histseg.compute_likelihood_histories(edge.histories, myhistScores, totalp)	
-				edge.compute_timing_wmeansd(myhistScores)
-				edge.histories.insert(refindex, refhistoryid)	
-				edge.prevals.insert(refindex, myedgesim.refpreval)	
-				edge.orders.insert(refindex, myedgesim.reforder)	
-				upperc=edge.uppercosts.pop(refindex)
-				lowerc=edge.lowercosts.pop(refindex)
-				myedgesim.avecost=np.mean(np.array(edge.uppercosts+edge.lowercosts))
-				edge.uppercosts.insert(refindex, upperc)	
-				edge.lowercosts.insert(refindex, lowerc)	
-			else: 
-				FN[0]+=1
-				FN[type]+=1
-				FNedges.append(myedgesim)
-				myedgesim.isTrue=-1
-				edge.likelihood=1
-				myedgesim.avecost=np.mean(np.array(edge.uppercosts+edge.lowercosts))
-				myedgesim.refpreval=edge.prevals[refindex]
-				myedgesim.reforder=edge.orders[refindex]
-		else: 
+	TP=np.zeros(len(types), dtype=int)
+	FP=np.zeros(len(types), dtype=int)
+	TN=np.zeros(len(types), dtype=int)
+	FN=np.zeros(len(types), dtype=int)
+	explained=np.zeros(len(types), dtype=int)
+	FNesims=[]
+	FPesims=[]
+	myEdgeSimData=[] 
+	for event in events:
+		if not event.histories: event.histories=histseg.listout_ranges(event.histRanges)
+		myedgesim=EdgeSimulationData(event, historyScores, totalp, refhistoryid)
+		etype=event.determineEventType()
+		if myedgesim.isTrue==1: 
+			TP[0]+=1
+			TP[etype]+=1
+		elif myedgesim.isTrue==-1: 
+			FN[0]+=1
+			FN[etype]+=1
+			FNesims.append(myedgesim)
+		elif myedgesim.isTrue==0:  
 			FP[0]+=1
-			FP[type]+=1
-			edge.likelihood = histseg.compute_likelihood_histories(edge.histories, myhistScores, totalp)	
-			if edge.likelihood >1: 
-				sys.stderr.write("bad lscore: %s\t%s\t%d\n" % (str(edge.likelihood), str(totalp), len(edge.costs)))
-			myedgesim.isTrue=0
-			myedgesim.avecost=np.mean(np.array(edge.uppercosts+edge.lowercosts))
+			FP[etype]+=1
+			FPesims.append(myedgesim)
 		myEdgeSimData.append(myedgesim)
-	if len(FNedges) >0: 
-		TN=checkForCancellingEdges(FNedges) #this will also modify the isTrue value of FNedges
+	if len(FNesims) >0: #check if the FP event is a linear combination of True events.
+		truelist=[] 
+		for esim in FNesims: 
+			event=esim.event
+			truelist.append(create_edge_tuplelist(event))
+		RV=linear_decomp.ReferenceVectors(truelist)
+		for fpesim in FPesims: 
+			fpevent=fpesim.event
+			fplist=create_edge_tuplelist(fpevent)
+			if RV.canExplain(fplist): 
+				explained[0]+=1
+				explained[fpevent.determineEventType()]+=1
+				fpesim.isTrue=3
+		#TN=checkForCancellingEdges(FNedges) #this will also modify the isTrue value of FNedges
 		for i in xrange(len(TN)): 
 			FN[i]=FN[i]-TN[i]	
 	
@@ -83,18 +116,19 @@ def analyze_simulation(edges, refhistoryid, historyScores, datout_fh, stats_fh, 
 		header="event_id\tevent_type\tavecost\tLscore\tCNval\ttrue\tlength\tprevals\torders\tnumhists\n"
 		datout_fh.write(header)
 		for edgesim in myEdgeSimData:
-			edge=edgesim.edge 
-			prevals=",".join(map(str, [edgesim.refpreval, edge.prevalmean, edge.prevalsd]))
-			orders=",".join(map(str, [edgesim.reforder, edge.ordermean, edge.ordersd]))
-			type=edge.determineEventType()
-			length=edge.get_Event_length()
-			mystr="\t".join(map(str, [edge.id, types[type], edgesim.avecost, edge.likelihood, edge.cnval, edgesim.isTrue, length, prevals, orders, len(edge.histories)])) + "\n"	
-			datout_fh.write(mystr)
+			datout_fh.write(str(edgesim))
 	
 	if stats_fh: 
 		stats_fh.write("type\ttotal\tAmp\tDel\tAdj\n")
-		stats_fh.write("TP\t%s\nFP\t%s\nFN\t%s\nTN\t%s\n" % ("\t".join(map(str, TP)), "\t".join(map(str, FP)), "\t".join(map(str, FN)), "\t".join(map(str, TN)) ))
-		f1score = float(2*TP[0])/float(2*TP[0]+FN[0]+FP[0])
+		stats_fh.write("TP\t%s\nFP\t%s\nFN\t%s\nTN\t%s\nEX\t%s\n" % 
+			("\t".join(map(str, TP)), 
+			"\t".join(map(str, FP)), 
+			"\t".join(map(str, FN)), 
+			"\t".join(map(str, TN)),
+			"\t".join(map(str, explained)) ))
+		tp=TP[0]+explained[0]
+		fn=FN[0]-explained[0]
+		f1score = float(2*tp)/float(2*tp+fn+FP[0])
 		stats_fh.write("F1Score:\t%s\n" % (str(f1score)))
 	
 	if breaks_fh: 
@@ -103,6 +137,34 @@ def analyze_simulation(edges, refhistoryid, historyScores, datout_fh, stats_fh, 
 			(n, t) = breakpoints[loc]
 			breaks_fh.write("%s\t%d\t%d\n" % (loc, n, t))
 		breaks_fh.write("Breakpoints: %d\n" % len(breakpoints))
+
+
+def create_edge_tuplelist(event):
+	segstr=event.segstr
+	locs=segstr.split(',')
+	newlocs=[]
+	for loc in locs:
+		seg=False
+		m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
+		if m:
+			(sign, chr1, s, st1, chr2, e, st2)=m.group(1,2,3,4,5,6,7)
+			# order the ends
+		else: 
+			m=re.search('([+|-])/(\w+):(-?\d+)-(\-?\d+)', loc)
+			if m: 
+				(sign, chr1, s, e) = m.group(1,2,3,4)
+				(chr2, st1, st2)=(chr1, "+", "+")
+				seg=True
+		if (chr1 > chr2) or (chr1==chr2 and s>e): 
+			(x,y,z)=(chr1, s, st1)
+			(chr1, s, st1)=(chr2, e, st2)
+			(chr2,e,st2)=(x, y,z)
+		mysign=1
+		if sign=="-": mysign=-1 
+		if seg: newstr="%s:%s-%s" % (chr1, s, e)
+		else: newstr="%s:%s(%s)-%s:%s(%s)" % (chr1, s, st1, chr2, e, st2)
+		newlocs.append((newstr, mysign))
+	return(newlocs)
 
 
 def checkForCancellingEdges(edgesims):
