@@ -364,14 +364,12 @@ def remove_signs_from_segstr(segstr):
 	newlocs=[]
 	for loc in locs:
 		m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
-		if m:
-			(chr1, s, st1, chr2, e, st2)=m.group(2,3,4,5,6,7)
+		if m:	#(chr1, s, st1, chr2, e, st2)=m.group(2,3,4,5,6,7)
 			newlocs.append("%s:%s(%s)-%s:%s(%s)" % m.group(2,3,4,5,6,7))
 			sign=m.group(1)
 		else:
 			m=re.search('([+|-])/(\w+):(-?\d+)-(\-?\d+)', loc)
-			if m:
-				(chr1, s, e) = m.group(2,3,4)
+			if m: #(chr1, s, e) = m.group(2,3,4)
 				newlocs.append("%s:%s-%s" % m.group(2,3,4))
 				sign=m.group(1)
 		mysign=1

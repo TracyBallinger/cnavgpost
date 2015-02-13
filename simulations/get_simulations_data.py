@@ -38,14 +38,12 @@ def make_SimData_dict(simdir, edgeorevent, pvalcutoff=0, cutcost=False):
 		Ps=mydat[:,lscore]>pvalcutoff
 		Ns=mydat[:,lscore]<=pvalcutoff
 	if pvalcutoff>0: 
-		#Ps=mydat[:,lscore]>pvalcutoff
-		#Ns=mydat[:,lscore]<=pvalcutoff
-		TP = (mydat[:,t] ==1) & Ps
+		TP = ((mydat[:,t] ==1) | (mydat[:,t]==3)) & Ps
 		FP = (mydat[:,t]==0) & Ps
 		TN = (Ns & (mydat[:,t] == 0)) | (mydat[:,t]==2)
 		FN = (mydat[:,t] ==-1) | ((mydat[:,t] == 1) & Ns)
 	else: 
-		TP = mydat[:,t] ==1
+		TP = ((mydat[:,t] ==1) | (mydat[:,t]==3)) 
 		FP = mydat[:,t] ==0
 		TN = mydat[:,t] == 2 #mydat[:,t] ==0
 		FN = mydat[:,t] ==-1
