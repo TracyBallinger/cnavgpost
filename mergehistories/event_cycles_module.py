@@ -86,6 +86,7 @@ class Event:
 		self.histRanges=getRanges(self.histories)
 		if historyScores is not None: 
 			self.compute_timing_wmeansd(historyScores)
+			self.likelihood=compute_likelihood_histories(self.histories, historyScores)
 	
 	def addseg(self, bseg):
 		self.segs.append(bseg)
@@ -352,10 +353,6 @@ def sort_segs_in_cycle(seglist):
 			segs.append(seg)
 	if maxiter <0: 
 		sys.stderr.write("len of segs: %d, and segstr: %s" % (len(segs), currentseg))
-		for seg in myorderedsegs: 
-			sys.stderr.write("orderedseg is: %s" % (str(seg)))
-		for seg in segs: 
-			sys.stderr.write("seg is: %s" % (str(seg)))
 		sys.exit(-1)
 	return myorderedsegs
 
@@ -377,6 +374,18 @@ def remove_signs_from_segstr(segstr):
 			mysign=-1
 	return (",".join(newlocs), mysign)
 
+# this will modify e1 and e2. 
+def cancel_Event_data(e1, e2): 
+	keepi2=get_index_of_non_intersecting_items(e1.histories, e2.histories)
+	keepi1=get_index_of_non_intersecting_items(e2.histories, e1.histories)
+	for (e, keepi) in [(e1, keepi1), (e2, keepi2)]: 
+		for i in keepi:	
+			e.histories=list(np.array(e.histories)[keepi])
+			e.uppercosts=list(np.array(e.uppercosts)[keepi])
+			e.lowercosts=list(np.array(e.lowercosts)[keepi])
+			e.prevals=list(np.array(e.prevals)[keepi])
+			e.orders=list(np.array(e.orders)[keepi])
+	
 
 # If the given event (aka cycle) has figure 8 structures, it will split the event into the constitutative smaller cycles. This is used to break figure 8s up in the simulations so that the events are comparable to the true history in which figure 8s aren't allowed.  
 def split_cycle(event):
@@ -722,12 +731,18 @@ def compute_likelihood_histories(historyids, historyScores, denom=1):
 	costsarray=np.mean(historyScores[hindices,1:3], axis=1)
 	maskedcosts=np.ma.masked_where(costsarray==0, costsarray)
 	x=np.sum(np.exp(-1*Global_K*maskedcosts))
-	return x/float(denom)
+	if denom==1: 
+		denom=compute_totalp(historyScores)
+	return x/denom
 
 def compute_totalp(historyScores): 
 	allh=historyScores[:,1]>0
-	totalp=compute_likelihood_histories(historyScores[allh,0], historyScores)
-	return totalp
+	historyids = historyScores[allh,0]
+	hindices = historyids_to_indices(historyids, historyScores)
+	costsarray=np.mean(historyScores[hindices,1:3], axis=1)
+	maskedcosts=np.ma.masked_where(costsarray==0, costsarray)
+	x=np.sum(np.exp(-1*Global_K*maskedcosts))
+	return x 
 
 def historyids_to_indices(historyids, historyScores): 
 	hids=np.array(historyids, dtype=int)
