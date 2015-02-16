@@ -38,8 +38,8 @@ class Event:
 			self.prevals=[] 
 			self.orders=[] 
 			self.segs=[]
-			self.uppercosts={} 
-			self.lowercosts={}
+			self.uppercosts=[] 
+			self.lowercosts=[]
 			self.dupsremoved=True
 			
 		elif isinstance(bseglist, list):
@@ -74,7 +74,7 @@ class Event:
 			return False
 
 	# update is done after equivalent events across multiple histories have been merged together.  Then the likelihood score and other stats for this event can be calculated. 	
-	def update(self, historyScores):
+	def update(self, historyScores, totalp=1):
 		if self.segstr=="": 
 			self.make_segstr()
 		if self.numsegs==0: 
@@ -86,8 +86,9 @@ class Event:
 		self.histRanges=getRanges(self.histories)
 		if historyScores is not None: 
 			self.compute_timing_wmeansd(historyScores)
-			self.likelihood=compute_likelihood_histories(self.histories, historyScores)
+			self.likelihood=compute_likelihood_histories(self.histories, historyScores, totalp)
 	
+
 	def addseg(self, bseg):
 		self.segs.append(bseg)
 	
@@ -190,19 +191,30 @@ class Event:
 		cycleorder=0
 		
 		minhist=min(listout_ranges(self.histRanges))
-		for loc in mysegs: 
+		for (i, loc) in enumerate(mysegs): 
 			m=re.search('([+|-])/(\w+):(-?\d+)-(-?\d+)', loc)			
 			if m: 
 				coords=m.group(2,3,4)
 				bseg=Braney_seg(dummysegline % (coords[0], coords[1], coords[2], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
 				sign=m.group(1)
-			else: 
-				m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)			
-				if m: 
-					coords=m.group(2,3,4,5,6,7)
-					bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
-					sign=m.group(1)
-			if sign=="+": bseg.cnval = bseg.cnval * -1
+				if sign=="+": bseg.cnval = bseg.cnval * -1 #opposite sign for segments
+			m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)	
+			if m: 
+				coords=m.group(2,3,4,5,6,7)
+				bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+				sign=m.group(1)
+				if sign=="-": bseg.cnval = bseg.cnval * -1
+			m=re.search('(\w+):(-?\d+)-(-?\d+)', loc)			
+			if m: 
+				coords=m.group(1,2,3)
+				bseg=Braney_seg(dummysegline % (coords[0], coords[1], coords[2], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+				#switch the sign of the CN for odd segs in the cycle
+				if (i % 2) == 0: bseg.cnval = bseg.cnval * -1  
+			m=re.search('(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
+			if m: 	
+				coords=m.group(1,2,3,4,5,6)
+				bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+				if (i % 2) == 1: bseg.cnval = bseg.cnval * -1  
 			self.segs.append(bseg)
 			cycleorder+=1
 	
@@ -214,13 +226,12 @@ class Event:
 		self.orders += other.orders 
 		
 	def merge_Event_data(self, other): 
-		indicesToAdd=get_index_of_non_intersecting_items(self.histories, other.histories)
-		for i in indicesToAdd: 	
-			self.histories.append(other.histories[i])
-			self.uppercosts.append(other.uppercosts[i])
-			self.lowercosts.append(other.lowercosts[i])
-			self.prevals.append(other.prevals[i])
-			self.orders.append(other.orders[i])
+		iToAdd=get_index_of_non_intersecting_items(self.histories, other.histories)
+		self.histories+=list(np.array(other.histories)[iToAdd])
+		self.uppercosts+=list(np.array(other.uppercosts)[iToAdd])
+		self.lowercosts+=list(np.array(other.lowercosts)[iToAdd])
+		self.prevals+=list(np.array(other.prevals)[iToAdd])
+		self.orders+=list(np.array(other.orders)[iToAdd])
 	
 	def sort_values_by_history(self):
 		histarray=np.array(self.histories) 
@@ -315,22 +326,32 @@ class Event:
 		for seg in self.segs: 
 			mystr+="%s\t%s\t%d\t%s\t%s\t%f\n" % (str(seg), self.id, len(self.histories), self.hranges, str(self.likelihood))
 		return mystr
+
+	def compute_likelihood(self, historyScores, totalp=1):
+		self.likelihood=compute_likelihood_histories(self.histories, historyScores, totalp)
 	
 	def compute_timing_wmeansd(self, historyScores):
-		hindices = historyids_to_indices(self.histories, historyScores)
-		costsarray=historyScores[hindices, 1]
-		w=np.exp(-1*Global_K*np.array(costsarray))
-		pvals=np.array(self.prevals, dtype=float)
-		waverage=np.average(pvals, weights=w)
-		var=np.average((pvals - waverage)**2, weights=w)
-		self.prevalmean=waverage
-		self.prevalsd=math.sqrt(var)
-		# do the same calculation for the ordering of the event within the history
-		pvals=np.array(self.orders, dtype=float)
-		waverage=np.average(pvals, weights=w)
-		var=np.average((pvals - waverage)**2, weights=w)
-		self.ordermean=waverage
-		self.ordersd=math.sqrt(var)
+		if len(self.histories)>0: 
+			hindices = historyids_to_indices(self.histories, historyScores)
+			costsarray=historyScores[hindices, 1]
+			w=np.exp(-1*Global_K*np.array(costsarray))
+			pvals=np.array(self.prevals, dtype=float)
+			waverage=np.average(pvals, weights=w)
+			var=np.average((pvals - waverage)**2, weights=w)
+			self.prevalmean=waverage
+			self.prevalsd=math.sqrt(var)
+			# do the same calculation for the ordering of the event within the history
+			pvals=np.array(self.orders, dtype=float)
+			waverage=np.average(pvals, weights=w)
+			var=np.average((pvals - waverage)**2, weights=w)
+			self.ordermean=waverage
+			self.ordersd=math.sqrt(var)
+		else: 
+			self.prevalmean=-1
+			self.prevalsd=-1
+			self.ordermean=-1
+			self.ordersd=-1
+			
 
 def sort_segs_in_cycle(seglist):
 	segs=sorted(seglist, key=lambda x: x.cycleorder)
@@ -359,19 +380,19 @@ def sort_segs_in_cycle(seglist):
 def remove_signs_from_segstr(segstr):
 	locs=segstr.split(',')
 	newlocs=[]
+	sign=""
 	for loc in locs:
 		m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
 		if m:	#(chr1, s, st1, chr2, e, st2)=m.group(2,3,4,5,6,7)
 			newlocs.append("%s:%s(%s)-%s:%s(%s)" % m.group(2,3,4,5,6,7))
-			sign=m.group(1)
+			if sign=="": sign=m.group(1) #take the sign of the first segment
 		else:
 			m=re.search('([+|-])/(\w+):(-?\d+)-(\-?\d+)', loc)
 			if m: #(chr1, s, e) = m.group(2,3,4)
 				newlocs.append("%s:%s-%s" % m.group(2,3,4))
-				sign=m.group(1)
-		mysign=1
-		if sign=="-":
-			mysign=-1
+				if sign=="": sign=m.group(1)
+	mysign=1
+	if sign=="-": mysign=-1
 	return (",".join(newlocs), mysign)
 
 # this will modify e1 and e2. 
@@ -379,12 +400,11 @@ def cancel_Event_data(e1, e2):
 	keepi2=get_index_of_non_intersecting_items(e1.histories, e2.histories)
 	keepi1=get_index_of_non_intersecting_items(e2.histories, e1.histories)
 	for (e, keepi) in [(e1, keepi1), (e2, keepi2)]: 
-		for i in keepi:	
-			e.histories=list(np.array(e.histories)[keepi])
-			e.uppercosts=list(np.array(e.uppercosts)[keepi])
-			e.lowercosts=list(np.array(e.lowercosts)[keepi])
-			e.prevals=list(np.array(e.prevals)[keepi])
-			e.orders=list(np.array(e.orders)[keepi])
+		e.histories=list(np.array(e.histories)[keepi])
+		e.uppercosts=list(np.array(e.uppercosts)[keepi])
+		e.lowercosts=list(np.array(e.lowercosts)[keepi])
+		e.prevals=list(np.array(e.prevals)[keepi])
+		e.orders=list(np.array(e.orders)[keepi])
 	
 
 # If the given event (aka cycle) has figure 8 structures, it will split the event into the constitutative smaller cycles. This is used to break figure 8s up in the simulations so that the events are comparable to the true history in which figure 8s aren't allowed.  
@@ -726,14 +746,17 @@ def get_historyScores(statsfile):
 	return historyScores
 
 def compute_likelihood_histories(historyids, historyScores, denom=1):
-	historyids=np.unique(historyids)
-	hindices = historyids_to_indices(historyids, historyScores)
-	costsarray=np.mean(historyScores[hindices,1:3], axis=1)
-	maskedcosts=np.ma.masked_where(costsarray==0, costsarray)
-	x=np.sum(np.exp(-1*Global_K*maskedcosts))
-	if denom==1: 
-		denom=compute_totalp(historyScores)
-	return x/denom
+	if len(historyids)>0: 
+		historyids=np.unique(historyids)
+		hindices = historyids_to_indices(historyids, historyScores)
+		costsarray=np.mean(historyScores[hindices,1:3], axis=1)
+		maskedcosts=np.ma.masked_where(costsarray==0, costsarray)
+		x=np.sum(np.exp(-1*Global_K*maskedcosts))
+		if denom==1: 
+			denom=compute_totalp(historyScores)
+		return x/denom
+	else: 
+		return 0
 
 def compute_totalp(historyScores): 
 	allh=historyScores[:,1]>0
