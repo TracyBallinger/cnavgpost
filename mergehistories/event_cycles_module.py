@@ -591,6 +591,7 @@ def unique_c_events_list(eventslist):
 			unique_events.append(eventA)
 			eventA=eventB
 	unique_events.append(eventA)
+	sys.stderr.write("There are %d events after merging\n" % len(unique_events))
 	# check that the event doesn't need to be split again because it happens twice in some histories
 	finalevents=unique_events
 	splitoffs=get_split_offs(unique_events)
@@ -644,6 +645,7 @@ def make_events_from_braneyfn(braneyfn):
 	myevent.histories=[histcount]  
 	myevent.make_segstr()
 	myevents.append(myevent)
+	myevents=unique_c_events_list(myevents)
 	sys.stderr.write("num_events: %d\n" % (len(myevents)))
 	uniqueevents=unique_c_events_list(myevents)
 	sys.stderr.write("num_events: %d, filtered: %d\n" % (len(myevents), len(uniqueevents)))
