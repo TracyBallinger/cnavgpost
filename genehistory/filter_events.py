@@ -2,6 +2,7 @@
 
 import sys, os
 import cnavgpost.mergehistories.event_cycles_module as histseg
+from cnavgpost.genehistory.bedFileModule import *  
 import argparse
 import cPickle as pickle 
 import subprocess, re
@@ -30,7 +31,7 @@ def filter_events_by_cn_overlap(events, bedfn, perc, cbs=True, datout=False):
 	return(myevents)
 
 def printEventData(event, info): 
-	return "%s\t%d\t%f\t%d\t%s\n" % (event.id, event.determineEventType(), event.likelihood, len(event.histories), str(info))
+	return "%s\t%d\t%f\t%d\t%s\n" % (event.id, event.determineEventType(), event.likelihood, event.numhists, str(info))
 
 def event_overlaps_CN(event, bedentries, perc):
 	if event.segs==[]:
@@ -62,28 +63,6 @@ def percent_bed_overlaps(bedentries, region, perc):
 	return myvals
 
 
-class BedEntry: 
-	def __init__(self, bedline):
-		(chr, start, end) = bedline.strip().split('\t')[:4]
-		self.chr=re.sub("chr", "", chr)
-		self.start=int(start)
-		self.end=int(end)
-	
-	def __str__(self): 
-		return "%s:%d-%d" % (self.chr, self.start, self.end)
-
-	def comes_before(self, other): 
-		return ((self.chr < other.chr) or (self.chr == other.chr and self.start < other.start))		
-		
-	def comes_after(self, other): 
-		return ((self.chr > other.chr) or (self.chr==other.chr and self.start>other.start))
-
-	def overlap(self, region): 
-		overlap=0
-		if (self.chr == region.chr): 
-			overlap=min(region.end, self.end) - max(region.start, self.start)
-		return overlap 
-
 ## This will filter out events that cancel eachother out (ie, an amplification immediately followed by a deletion). 
 def filter_fleeting_events(events, histScores, totalp, fcutoff=0, datout=False): 
 	for e in events: 
@@ -98,11 +77,36 @@ def filter_fleeting_events(events, histScores, totalp, fcutoff=0, datout=False):
 		if e1.segstr == e2.segstr:
 			sameEs.append(e2)
 		else: 
-			filtered+=remove_canceling_histories(sameEs, histScores, totalp, datout)	
+#			filtered+=remove_canceling_histories(sameEs, histScores, totalp, datout)	
+			filtered+=add_canceling_events(sameEs, datout)	
 			sameEs=[e2]
 			e1=e2
-	filtered+=remove_canceling_histories(sameEs, histScores, totalp, datout)	
+#	filtered+=remove_canceling_histories(sameEs, histScores, totalp, datout)	
+	filtered+=add_canceling_events(sameEs, datout)	
 	return filtered
+
+def add_canceling_events(events, datout=False): 
+	for i in xrange(len(events)): 
+		e1=events[i]
+		for e2 in events[i:]: 
+			if (e1.segstr == e2.segstr) and ((e1.cnval + e2.cnval) == 0): 
+		#		sys.stderr.write("%s is cancelling %s, %f, %f\n" % (e1.id, e2.id, e1.likelihood, e2.likelihood))
+				if e1.likelihood>e2.likelihood: 
+					e1.likelihood=e1.likelihood-e2.likelihood
+					e2.likelihood=0
+				else: 
+					e2.likelihood=e2.likelihood-e1.likelihood
+					e1.likelihood=0
+		#		sys.stderr.write("after %s is cancelling %s, %f, %f\n" % (e1.id, e2.id, e1.likelihood, e2.likelihood))
+	filtered=[]
+	if datout: 
+		for e in events: 
+			filtered.append(printEventData(e, str(e.likelihood)))
+		#	sys.stderr.write("event %s %f\n" % (e.id, e.likelihood))
+	else: 
+		for e in events: 
+			filtered.append(e)
+	return filtered 
 
 def remove_canceling_histories(events, histScores, totalp, datout=False): 
 	myinfo=[]
@@ -115,12 +119,12 @@ def remove_canceling_histories(events, histScores, totalp, datout=False):
 			if (e1.segstr == e2.segstr) and ((e1.cnval + e2.cnval) == 0): 
 				# only keep the histories that are unique to each event. 
 				histseg.cancel_Event_data(e1,e2)
-				sys.stderr.write("%s is cancelling %s\n" % (e1.id, e2.id))
+			#	sys.stderr.write("%s is cancelling %s\n" % (e1.id, e2.id))
 	filtered=[]
 	if datout: 
 		for (e, info) in zip(events, myinfo):
-			e.compute_timing_wmeansd(histScores)
-			e.compute_likelihood(histScores, totalp)
+			#e.compute_timing_wmeansd(histScores)
+			#e.compute_likelihood(histScores, totalp)
 			filtered.append(printEventData(e, info)) 
 	else: 
 		for e in events:

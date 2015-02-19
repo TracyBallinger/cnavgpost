@@ -457,7 +457,14 @@ def get_index_of_non_intersecting_items(list1, list2):
 	for i in xrange(len(list2)): 
 		if list2[i] not in list1: 
 			myis.append(i)
-	return myis 
+	return myis
+
+def get_index_of_intersecting_items(list1, list2): 
+	myis=[]
+	for i in xrange(len(list2)): 
+		if list2[i] in list1: 
+			myis.append(i)
+	return myis
 
 def getRanges(vals):
 	myranges=[] 
@@ -504,7 +511,6 @@ def get_cnvalue_from_seglist(bseglist):
 def get_overlapping_events(chr, start, end, evntsfn ):
 	overlapping_events=[]
 	for line in open(evntsfn, 'r'):
-		sys.stderr.write("line: %s\n" % (line))
 		myevent=Event(line)
 		if (myevent.check_overlap(chr, start, end)):
 			overlapping_events.append(myevent)
@@ -855,6 +861,7 @@ def compute_lscore_over_time(events, historyScores, run, outputfn):
 	np.savetxt(outputfn, mydata.T, delimiter='\t', header="\t".join(myeventids) + "\n" + "\t".join(map(str, myruncounts)))
 
 # This will merge events together how?... 	  	
+# I DON"T THINK THIS IS EVER USED... 
 def merge_events(events): 
 	newevent=Event(events[0].segs)
 	newevent.histories=events[0].histories
