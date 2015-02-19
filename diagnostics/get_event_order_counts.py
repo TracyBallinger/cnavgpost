@@ -7,15 +7,54 @@ import cnavgpost.mergehistories.event_cycles_module as histseg
 import numpy as np
 import re
 
-def get_events_order_counts(myevents, outfn, simulation):
+def get_events_order_counts(myevents, outfn, simulation, histScores=None):
 	outfh=open(outfn, 'w')
 	for a in xrange(len(myevents)):
 		eventA = myevents[a]
 		for b in xrange(a+1, len(myevents)): 
 			eventB = myevents[b]
-			(ab, ba, tot, truth) = get_order_counts(eventA, eventB, simulation) 
-			outfh.write("%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n" % (eventA.id, eventB.id, ab, ba, tot, truth, eventA.determineEventType(), eventB.determineEventType()))
+#			(ab, ba, tot, truth) = get_order_counts(eventA, eventB, simulation) 
+			(abcnt, bacnt, ab, ba, tot, truth) = get_hcost_difference(eventA, eventB, simulation, histScores) 
+			#outfh.write("%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n" % (eventA.id, eventB.id, ab, ba, tot, truth, eventA.determineEventType(), eventB.determineEventType()))
+			outfh.write("\t".join(map(str, [eventA.id, eventB.id, ab, ba, tot, truth, eventA.determineEventType(), eventB.determineEventType(), abcnt, bacnt]))+"\n")
 	outfh.close()
+
+def get_hcost_difference(eventA, eventB, simulation, historyScores): 
+	(abcost, bacost, truth, tot, abcnt, bacnt) = (0, 0, -1, 0, 0, 0)
+	ai=np.in1d(np.array(eventA.histories), np.array(eventB.histories))
+	if sum(ai)>0: 
+		bi=np.in1d(np.array(eventB.histories), np.array(eventA.histories))
+		aorders=np.array(eventA.orders)[ai]
+		borders=np.array(eventB.orders)[bi]
+		hids=np.array(eventA.histories)[ai][aorders<borders]
+		if simulation and 0 in hids: 
+			hids=hids[hids!=0] 
+		abcnt=len(hids)
+		if len(hids)>0: 
+			hi=histseg.historyids_to_indices(hids, historyScores)
+			abcost=np.mean(historyScores[hi,1:3])
+		hids=np.array(eventA.histories)[ai][borders<aorders]
+		if simulation and 0 in hids: 
+			hids=hids[hids!=0] 
+		bacnt=len(hids)
+		if len(hids)>0: 
+			hi=histseg.historyids_to_indices(hids, historyScores)
+			bacost=np.mean(historyScores[hi,1:3])
+		eqhids=np.array(eventA.histories)[ai][borders==aorders]
+		if len(eqhids)>0: 
+			hi=histseg.historyids_to_indices(eqhids, historyScores)
+			eqcost=np.mean(historyScores[hi,1:3])
+		tot=sum(ai)
+		if simulation and (0 in eventA.histories) and (0 in eventB.histories): 
+			atruth=eventA.orders[eventA.histories.index(0)]	
+			btruth=eventB.orders[eventB.histories.index(0)]
+			tot=tot-1
+			if atruth<btruth: 
+				truth=1
+			elif btruth < atruth: 
+				truth=2
+			else: truth=0
+	return(abcnt, bacnt, abcost, bacost, tot, truth)
 
 def get_order_counts(eventA, eventB, simulation): 
 	ab=0
@@ -129,13 +168,13 @@ def count_early_vs_late(event, historylengths, simulation):
 def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn): 
 	sys.stderr.write("pvalcutoff is %f\n" % pvalcutoff)
 	useEdges=re.search(".pedgs", pevntsfile)
-	#historyScores=np.loadtxt(histstatsfn, dtype='int') #You really only need this file in order to tell how many histories there are. 
+	historyScores=np.loadtxt(histstatsfn, dtype='int') #You really only need this file in order to tell how many histories there are. 
 	events=pickle.load(open(pevntsfile, 'rb'))
 	myevents=[]
-	if pvalcutoff >0: 
-		for e in events: 
-			if e.likelihood > pvalcutoff:
-				myevents.append(e)
+	for e in events:
+		e.histories=histseg.listout_ranges(e.histRanges) 
+		if e.likelihood > pvalcutoff:
+			myevents.append(e)
 	else:
 		myevents=events
 	sys.stderr.write("There are %d events with pvalue gt %f\n" % (len(myevents), pvalcutoff))
@@ -146,7 +185,7 @@ def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn):
 			outfn=os.path.join(outdir, "edges_ordcnts.dat")
 		else: 
 			outfn=os.path.join(outdir, "event_ordcnts.dat")
-		get_events_order_counts(myevents, outfn, simulation)
+		get_events_order_counts(myevents, outfn, simulation, historyScores)
 	if False: 
 		if useEdges:  
 			outfn1=os.path.join(outdir, "edges_earlycnts.dat")
@@ -159,9 +198,9 @@ def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn):
 if __name__ == '__main__': 
 	parser=argparse.ArgumentParser(description='given a .pevnts file, will do pairwise comparison of all events, counting the number of times they come in a certain order') 
 	parser.add_argument('pevntsfile', help='a .pevnts file')
+	parser.add_argument('historystats', help='historystats.txt file for the sample')
 	parser.add_argument('outdir', help='The directory to write the results to. A file called event_ordcnts.dat will be made and, if historylengths is specified, one called event_earlycnts.dat')
 	parser.add_argument('--simulation', help='whether the history is a simulation', action='store_true') 
 	parser.add_argument('--cutoff', help='only look at events with a likelihood above this cutoff', default=0, type=float)
-	parser.add_argument('--historystats', help='historystats.txt file for the sample')
 	args=parser.parse_args()
 	main(args.pevntsfile, args.outdir, args.simulation, args.cutoff, args.historystats)

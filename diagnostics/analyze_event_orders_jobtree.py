@@ -51,17 +51,18 @@ class RunEventOrderAnalysis(Target):
 		else: 
 			pevntsfile=os.path.join(outdir, "%s.pevnts" % self.sampleid)
 			outfn=os.path.join(outdir, "events_ordcnts.dat")
+		histScores=np.loadtxt(self.statsfn, dtype='int')
 		# filter the events
 		events=pickle.load(open(pevntsfile, 'rb'))
 		myevents=[]
-		if pvalcutoff >0:
-			for e in events:
-				if e.likelihood > pvalcutoff:
+		for e in events:
+			e.histories=histseg.listout_ranges(e.histRanges)
+			if e.likelihood > pvalcutoff:
 					myevents.append(e)
 		else:
 			myevents=events
 		self.logToMaster("There are %d events with pvalue gt %f\n" % (len(myevents), pvalcutoff))
-		ordcnts.get_events_order_counts(myevents, outfn, opts.simulation)
+		ordcnts.get_events_order_counts(myevents, outfn, opts.simulation, histScores)
 		if False: #I'm still debugging this so it's not included
 			if useEdges:
 				outfn1=os.path.join(outdir, "edges_earlycnts.dat")
