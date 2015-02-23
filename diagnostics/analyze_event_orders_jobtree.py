@@ -62,7 +62,7 @@ class RunEventOrderAnalysis(Target):
 		else:
 			myevents=events
 		self.logToMaster("There are %d events with pvalue gt %f\n" % (len(myevents), pvalcutoff))
-		ordcnts.get_events_order_counts(myevents, outfn, opts.simulation, histScores)
+		ordcnts.get_events_order_counts(myevents, outfn, opts.simulation, histScores, opts.shufstart)
 		if False: #I'm still debugging this so it's not included
 			if useEdges:
 				outfn1=os.path.join(outdir, "edges_earlycnts.dat")
@@ -117,6 +117,7 @@ def main():
 	parser.add_option("--edges", dest="edges", action='store_true', help="Do the analysis using the .pedges instead of .pevnts files.")
 	parser.add_option('--simulation', dest="simulation", action='store_true', help='whether the history is a simulation')
 	parser.add_option('--cutoff', dest="cutoff", help='only look at events with a likelihood above this cutoff', default=0, type=float)
+	parser.add_option('--shufstart', dest="shufstart", default=0, type=int, help='time when order shuffling begins and cn-avg sampleing ends.')
 	Stack.addJobTreeOptions(parser)
 	options, args = parser.parse_args()
 	i = Stack(Setup(options)).startJobTree(options)

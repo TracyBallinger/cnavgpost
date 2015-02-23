@@ -7,54 +7,71 @@ import cnavgpost.mergehistories.event_cycles_module as histseg
 import numpy as np
 import re
 
-def get_events_order_counts(myevents, outfn, simulation, histScores=None):
+def get_events_order_counts(myevents, outfn, simulation, histScores=None, shufstart=0):
 	outfh=open(outfn, 'w')
+	outfh.write("eventAid\teventBid\tAtype\tBtype\ttruth\tabcost1\tbacost1\ttot1\tabcnt1\tbacnt1\tabcost2\tbacost2\ttot2\tabcnt2\tbacnt2\n")
 	for a in xrange(len(myevents)):
 		eventA = myevents[a]
 		for b in xrange(a+1, len(myevents)): 
 			eventB = myevents[b]
 #			(ab, ba, tot, truth) = get_order_counts(eventA, eventB, simulation) 
-			(abcnt, bacnt, ab, ba, tot, truth) = get_hcost_difference(eventA, eventB, simulation, histScores) 
+			results= get_hcost_difference(eventA, eventB, simulation, histScores, shufstart) 
 			#outfh.write("%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n" % (eventA.id, eventB.id, ab, ba, tot, truth, eventA.determineEventType(), eventB.determineEventType()))
-			outfh.write("\t".join(map(str, [eventA.id, eventB.id, ab, ba, tot, truth, eventA.determineEventType(), eventB.determineEventType(), abcnt, bacnt]))+"\n")
+			outfh.write("\t".join(map(str, [eventA.id, eventB.id, eventA.determineEventType(), eventB.determineEventType(), results]))+"\n")
 	outfh.close()
 
-def get_hcost_difference(eventA, eventB, simulation, historyScores): 
-	(abcost, bacost, truth, tot, abcnt, bacnt) = (0, 0, -1, 0, 0, 0)
+def get_hcost_difference(eventA, eventB, simulation, historyScores, shufstart): 
+	shuffledat={'abcost': 0, 'bacost': 0, 'tot':0, 'abcnt': 0, 'bacnt':0}
+	noshuffdat={'abcost': 0, 'bacost': 0, 'tot':0, 'abcnt': 0, 'bacnt':0}
+	truth=-1
 	ai=np.in1d(np.array(eventA.histories), np.array(eventB.histories))
 	if sum(ai)>0: 
-		bi=np.in1d(np.array(eventB.histories), np.array(eventA.histories))
-		aorders=np.array(eventA.orders)[ai]
-		borders=np.array(eventB.orders)[bi]
-		hids=np.array(eventA.histories)[ai][aorders<borders]
-		if simulation and 0 in hids: 
+		hids=np.array(eventA.histories)[ai]
+		# hids now has the history ids where both eventA and eventB exist together 
+		if simulation and 0 in hids:
 			hids=hids[hids!=0] 
-		abcnt=len(hids)
-		if len(hids)>0: 
-			hi=histseg.historyids_to_indices(hids, historyScores)
-			abcost=np.mean(historyScores[hi,1:3])
-		hids=np.array(eventA.histories)[ai][borders<aorders]
-		if simulation and 0 in hids: 
-			hids=hids[hids!=0] 
-		bacnt=len(hids)
-		if len(hids)>0: 
-			hi=histseg.historyids_to_indices(hids, historyScores)
-			bacost=np.mean(historyScores[hi,1:3])
-		eqhids=np.array(eventA.histories)[ai][borders==aorders]
-		if len(eqhids)>0: 
-			hi=histseg.historyids_to_indices(eqhids, historyScores)
-			eqcost=np.mean(historyScores[hi,1:3])
-		tot=sum(ai)
-		if simulation and (0 in eventA.histories) and (0 in eventB.histories): 
 			atruth=eventA.orders[eventA.histories.index(0)]	
 			btruth=eventB.orders[eventB.histories.index(0)]
-			tot=tot-1
 			if atruth<btruth: 
 				truth=1
 			elif btruth < atruth: 
 				truth=2
 			else: truth=0
-	return(abcnt, bacnt, abcost, bacost, tot, truth)
+		# split hids into those before shuffling and after shuffling. 
+		(hids1, hids2) = split_hids_before_after_iteration(hids, shufstart)
+		for (hids, dat) in [(hids1, noshuffdat), (hids2, shuffledat)]:
+			ai=np.in1d(np.array(eventA.histories), hids)
+			bi=np.in1d(np.array(eventB.histories), hids)
+			aorders=np.array(eventA.orders)[ai]
+			borders=np.array(eventB.orders)[bi]
+			abi=np.array(eventA.histories)[ai][aorders<borders]
+			dat['abcnt']=len(abi)
+			if len(abi)>0: 
+				hi=histseg.historyids_to_indices(abi, historyScores)
+				dat['abcost']=np.mean(historyScores[hi,1:3])
+			bai=np.array(eventA.histories)[ai][borders<aorders]
+			dat['bacnt']=len(bai)
+			if len(bai)>0: 
+				hi=histseg.historyids_to_indices(bai, historyScores)
+				dat['bacost']=np.mean(historyScores[hi,1:3])
+			eqhids=np.array(eventA.histories)[ai][borders==aorders]
+			if len(eqhids)>0: 
+				hi=histseg.historyids_to_indices(eqhids, historyScores)
+				dat['eqcost']=np.mean(historyScores[hi,1:3])
+			dat['tot']=sum(ai)
+	keys=['abcost', 'bacost', 'tot', 'abcnt', 'bacnt']
+	mystr=str(truth)
+	for dat in [shuffledat, noshuffdat]: 
+		for k in keys: 
+			mystr+="\t"+str(dat[k])
+	return(mystr) 
+
+def split_hids_before_after_iteration(hids, tsplit): 
+	itr=np.fmod(hids, histseg.Global_BINWIDTH)
+	hids1=hids[itr<tsplit]
+	hids2=hids[itr>=tsplit]
+	return(hids1, hids2)
+
 
 def get_order_counts(eventA, eventB, simulation): 
 	ab=0
@@ -165,7 +182,7 @@ def count_early_vs_late(event, historylengths, simulation):
 				late=late+1
 	return(early, late, truth)	
 
-def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn): 
+def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn, shufstart): 
 	sys.stderr.write("pvalcutoff is %f\n" % pvalcutoff)
 	useEdges=re.search(".pedgs", pevntsfile)
 	historyScores=np.loadtxt(histstatsfn, dtype='int') #You really only need this file in order to tell how many histories there are. 
@@ -185,7 +202,7 @@ def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn):
 			outfn=os.path.join(outdir, "edges_ordcnts.dat")
 		else: 
 			outfn=os.path.join(outdir, "event_ordcnts.dat")
-		get_events_order_counts(myevents, outfn, simulation, historyScores)
+		get_events_order_counts(myevents, outfn, simulation, historyScores, shufstart)
 	if False: 
 		if useEdges:  
 			outfn1=os.path.join(outdir, "edges_earlycnts.dat")
@@ -202,5 +219,6 @@ if __name__ == '__main__':
 	parser.add_argument('outdir', help='The directory to write the results to. A file called event_ordcnts.dat will be made and, if historylengths is specified, one called event_earlycnts.dat')
 	parser.add_argument('--simulation', help='whether the history is a simulation', action='store_true') 
 	parser.add_argument('--cutoff', help='only look at events with a likelihood above this cutoff', default=0, type=float)
+	parser.add_argument('--shufstart', default=0, type=int, help='time when order shuffling begins and cn-avg sampleing ends.')
 	args=parser.parse_args()
-	main(args.pevntsfile, args.outdir, args.simulation, args.cutoff, args.historystats)
+	main(args.pevntsfile, args.outdir, args.simulation, args.cutoff, args.historystats, args.shufstart)

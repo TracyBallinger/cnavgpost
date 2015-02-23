@@ -110,12 +110,22 @@ class RunShuffleForSim(Target):
 		os.chdir(self.simoutdir)
 		opts=self.options
 		if self.options.integer: 
-			self.logToMaster("running:\n%s/cn-avg-timeshuffle.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
-			if subprocess.call("%s/cn-avg-timeshuffle.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) !=0: 
+			self.logToMaster("running:\n%s/cn-avg.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) !=0: 
+				sys.exit("cn-avg.py did not complete.\n")
+			#subprocess.call("rm HISTORIES_%d.braney" % (self.j), shell=True)
+			#subprocess.call("rm HISTORY_STATS_%d" % (self.j), shell=True)
+			self.logToMaster("running:\n%s/cn-avg-timeshuffle.py -c -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg-timeshuffle.py -c -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) !=0: 
 				sys.exit("cn-avg-timeshuffle.py did not complete.\n")
 		else: 
-			self.logToMaster("running:\n%s/cn-avg-timeshuffle.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
-			if subprocess.call("%s/cn-avg-timeshuffle.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) != 0: 
+			self.logToMaster("running:\n%s/cn-avg.py -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg.py -n -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) !=0: 
+				sys.exit("cn-avg.py did not complete.\n")
+			#subprocess.call("rm HISTORIES_%d.braney" % (self.j), shell=True)
+			#subprocess.call("rm HISTORY_STATS_%d" % (self.j), shell=True)
+			self.logToMaster("running:\n%s/cn-avg-timeshuffle.py -c -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps))
+			if subprocess.call("%s/cn-avg-timeshuffle.py -c -d . -i %d -s %d" % (CNAVG_HOMEEXE, self.j, opts.steps), shell=True) != 0: 
 				sys.exit("cn-avg-timeshuffle.py did not complete.\n")
 		os.chdir(cwd)
 

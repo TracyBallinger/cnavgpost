@@ -771,10 +771,10 @@ def compute_totalp(historyScores):
 
 def historyids_to_indices(historyids, historyScores): 
 	hids=np.array(historyids, dtype=int)
-	iter=np.fmod(hids, Global_BINWIDTH)
+	itr=np.fmod(hids, Global_BINWIDTH)
 	sim=np.round(hids/Global_BINWIDTH)
 	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1
-	newi=iter+sim*runlen
+	newi=itr+sim*runlen
 	return newi
 
 def get_runlen(historyScores): 
