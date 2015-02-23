@@ -95,22 +95,9 @@ def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh,
 			FP[etype]+=1
 			FPesims.append(myedgesim)
 		myEdgeSimData.append(myedgesim)
-	if len(FNesims) >0: #check if the FP event is a linear combination of True events.
-		truelist=[] 
-		for esim in FNesims: 
-			event=esim.event
-			truelist.append(create_edge_tuplelist(event))
-		RV=linear_decomp.ReferenceVectors(truelist)
-		for fpesim in FPesims: 
-			fpevent=fpesim.event
-			fplist=create_edge_tuplelist(fpevent)
-			if RV.canExplain(fplist): 
-				explained[0]+=1
-				explained[fpevent.determineEventType()]+=1
-				fpesim.isTrue=3
-		#TN=checkForCancellingEdges(FNedges) #this will also modify the isTrue value of FNedges
-		for i in xrange(len(TN)): 
-			FN[i]=FN[i]-TN[i]	
+	check_for_linear_decomp(FNesims, FPesims, explained)
+	for i in xrange(len(TN)): 
+		FN[i]=FN[i]-TN[i]	
 	
 	if datout_fh: 
 		header="event_id\tevent_type\tavecost\tLscore\tCNval\ttrue\tlength\tprevals\torders\tnumhists\n"
@@ -139,6 +126,45 @@ def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh,
 		breaks_fh.write("Breakpoints: %d\n" % len(breakpoints))
 
 
+#check if the FP event is a linear combination of True events and, 
+# likewise if the FN events can be explained by the FP events.
+def check_for_linear_decomp(FNesims, FPesims, explained):
+	fpexp=[] # a list of the FP events that can be explained. 
+	if len(FNesims) >0: 
+		truelist=[] 
+		for esim in FNesims: 
+			event=esim.event
+			truelist.append(create_edge_tuplelist(event))
+		RV=linear_decomp.ReferenceVectors(truelist)
+		for fpesim in FPesims: 
+			fpevent=fpesim.event
+			fplist=create_edge_tuplelist(fpevent)
+			if RV.canExplain(fplist): 
+				explained[0]+=1
+				explained[fpevent.determineEventType()]+=1
+				fpexp.append(fpesim)
+				fpesim.isTrue=3
+		test_FN_events_for_linear_decomp(FNesims, fpexp)
+
+def test_FN_events_for_linear_decomp(FNesims, fpexp): 	
+# now correct the TN events that can be explained by FP explained events
+	if len(fpexp) >0: 
+	#find the combination of FN events that explains each FP event
+	# do this by a leaving one out until you get to the reduced set that can explain the event
+		for i in xrange(len(FNesims)): 
+			FNsubset=FNesims[:i]+FNesims[(i+1):]
+			truelist=[]
+			for esim in FNsubset:
+				truelist.append(create_edge_tuplelist(esim.event))
+			RV=linear_decomp.ReferenceVectors(truelist)
+			for esim in fpexp: 
+				fnlist=create_edge_tuplelist(esim.event)
+				if RV.canExplain(fnlist):
+					test_FN_events_for_linear_decomp(FNsubset, fpexp)
+				else: 
+					FNesims[i].isTrue=-3
+
+ 
 def create_edge_tuplelist(event):
 	segstr=event.segstr
 	locs=segstr.split(',')
