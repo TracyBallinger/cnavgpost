@@ -32,6 +32,21 @@ class Setup(Target):
 			pevntsfile=os.path.join(outputdir, sampleid + ".pevnts")	
 			self.addChildTarget(RunEventOrderAnalysis(sampleid, cnavgpost, statsfn, opts)) 
 
+class RunGetShuffleHistoryRanges(Target):
+	def __init__(self, sampleid, cnavgpost, statsfn, options): 
+		Target.__init__(self)
+		self.sampleid = sampleid
+		self.cnavgpost=cnavgpost
+		self.statsfn=statsfn
+		self.opts=options		
+
+	def run(self): 
+		opts=self.opts
+		histScores=np.loadtxt(self.statsfn, dtype='int')
+		(cndat, shdat)=ordcnts.get_shuffle_history_scores(histScores, opts.shufstart, opts.simulation)
+		np.savetxt(os.path.join(self.cnavgpost, "cnranges.txt"), cndat, fmt='%d', delimiter='\t')	
+		np.savetxt(os.path.join(self.cnavgpost, "shranges.txt"), shdat, fmt='%d', delimiter='\t')	
+
 class RunEventOrderAnalysis(Target): 
 	def __init__(self, sampleid, cnavgpost, statsfn, options): 
 		Target.__init__(self)

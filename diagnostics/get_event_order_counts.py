@@ -3,7 +3,7 @@
 import argparse 
 import cPickle as pickle
 import sys, os 
-import cnavgpost.mergehistories.event_cycles_module as histseg
+import cnavgpost.mergehistories.event_cycles_module as ecycles 
 import numpy as np
 import re
 
@@ -47,16 +47,16 @@ def get_hcost_difference(eventA, eventB, simulation, historyScores, shufstart):
 			abi=np.array(eventA.histories)[ai][aorders<borders]
 			dat['abcnt']=len(abi)
 			if len(abi)>0: 
-				hi=histseg.historyids_to_indices(abi, historyScores)
+				hi=ecycles.historyids_to_indices(abi, historyScores)
 				dat['abcost']=np.mean(historyScores[hi,1:3])
 			bai=np.array(eventA.histories)[ai][borders<aorders]
 			dat['bacnt']=len(bai)
 			if len(bai)>0: 
-				hi=histseg.historyids_to_indices(bai, historyScores)
+				hi=ecycles.historyids_to_indices(bai, historyScores)
 				dat['bacost']=np.mean(historyScores[hi,1:3])
 			eqhids=np.array(eventA.histories)[ai][borders==aorders]
 			if len(eqhids)>0: 
-				hi=histseg.historyids_to_indices(eqhids, historyScores)
+				hi=ecycles.historyids_to_indices(eqhids, historyScores)
 				dat['eqcost']=np.mean(historyScores[hi,1:3])
 			dat['tot']=sum(ai)
 	keys=['abcost', 'bacost', 'tot', 'abcnt', 'bacnt']
@@ -67,7 +67,7 @@ def get_hcost_difference(eventA, eventB, simulation, historyScores, shufstart):
 	return(mystr) 
 
 def split_hids_before_after_iteration(hids, tsplit): 
-	itr=np.fmod(hids, histseg.Global_BINWIDTH)
+	itr=np.fmod(hids, ecycles.Global_BINWIDTH)
 	hids1=hids[itr<tsplit]
 	hids2=hids[itr>=tsplit]
 	return(hids1, hids2)
@@ -77,8 +77,8 @@ def get_order_counts(eventA, eventB, simulation):
 	ab=0
 	ba=0
 	truth=-1
-	eventA.histories=histseg.listout_ranges(eventA.histRanges)	
-	eventB.histories=histseg.listout_ranges(eventB.histRanges)
+	eventA.histories=ecycles.listout_ranges(eventA.histRanges)	
+	eventB.histories=ecycles.listout_ranges(eventB.histRanges)
 	aindices=[]
 	bindices=[]
 	for ai in xrange(len(eventA.histories)): 
@@ -114,8 +114,8 @@ def count_earlylate_with_correction(events, historyScores, outfn1, outfn2):
 	simhist=0
 	for j in xrange(len(events)): 
 		e=events[j]
-		e.histories=histseg.listout_ranges(e.histRanges)
-		hindices = histseg.historyids_to_indices(e.histories, historyScores)
+		e.histories=ecycles.listout_ranges(e.histRanges)
+		hindices = ecycles.historyids_to_indices(e.histories, historyScores)
 		for h in xrange(len(e.histories)): 
 			i=hindices[h]
 			myord=float(e.orders[h])
@@ -158,8 +158,8 @@ def count_earlylate_with_correction(events, historyScores, outfn1, outfn2):
 
 
 def count_early_vs_late(event, historylengths, simulation):
-	event.histories=histseg.listout_ranges(event.histRanges)
-	hindices = histseg.historyids_to_indices(event.histories, historylengths) 
+	event.histories=ecycles.listout_ranges(event.histRanges)
+	hindices = ecycles.historyids_to_indices(event.histories, historylengths) 
 	histlens= historylengths[hindices,1]
 	early=0
 	late=0
@@ -182,14 +182,33 @@ def count_early_vs_late(event, historylengths, simulation):
 				late=late+1
 	return(early, late, truth)	
 
+def get_shuffle_history_scores(histscores, shuftime, simulation): 
+	if simulation: 
+		hids=histscores[histscores[:,0]>0,0]
+	itr=np.fmod(hids, ecycles.Global_BINWIDTH)
+	(hids1, hids2)=(hids[itr<shuftime], hids[itr>=shuftime])
+	results=[]
+	for hids in (hids1, hids2): 
+		i=ecycles.historyids_to_indices(hids, histscores)
+		a=histscores[i,1:3]
+		b=np.ascontiguousarray(a).view(np.dtype((np.void, a.dtype.itemsize * a.shape[1])))
+		x, idx = np.unique(b, return_index=True)
+		results.append(a[idx])
+	return results
+	
+
 def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn, shufstart): 
 	sys.stderr.write("pvalcutoff is %f\n" % pvalcutoff)
 	useEdges=re.search(".pedgs", pevntsfile)
-	historyScores=np.loadtxt(histstatsfn, dtype='int') #You really only need this file in order to tell how many histories there are. 
+	historyScores=np.loadtxt(histstatsfn, dtype='int') #You really only need this file in order to tell how many histories there are.
+	results=get_shuffle_history_scores(historyScores, shufstart, simulation) 
+	np.savetxt("cnranges.txt", results[0], fmt='%d', delimiter='\t')
+	np.savetxt("shranges.txt", results[1], fmt='%d', delimiter='\t')
+	sys.exit()
 	events=pickle.load(open(pevntsfile, 'rb'))
 	myevents=[]
 	for e in events:
-		e.histories=histseg.listout_ranges(e.histRanges) 
+		e.histories=ecycles.listout_ranges(e.histRanges) 
 		if e.likelihood > pvalcutoff:
 			myevents.append(e)
 	else:

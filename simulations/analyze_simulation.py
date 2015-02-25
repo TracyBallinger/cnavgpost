@@ -133,18 +133,20 @@ def check_for_linear_decomp(FNesims, FPesims, explained):
 	if len(FNesims) >0: 
 		truelist=[] 
 		for esim in FNesims: 
-			event=esim.event
-			truelist.append(create_edge_tuplelist(event))
+			truelist.append(create_edge_tuplelist(esim.event))
 		RV=linear_decomp.ReferenceVectors(truelist)
 		for fpesim in FPesims: 
-			fpevent=fpesim.event
-			fplist=create_edge_tuplelist(fpevent)
+			fplist=create_edge_tuplelist(fpesim.event)
 			if RV.canExplain(fplist): 
 				explained[0]+=1
+				fpevent=fpesim.event
 				explained[fpevent.determineEventType()]+=1
-				fpexp.append(fpesim)
 				fpesim.isTrue=3
-		test_FN_events_for_linear_decomp(FNesims, fpexp)
+		for esim in FNesims: 
+			if create_edge_tuplelist(esim.event) in RV.used_elements: 
+				esim.isTrue=-3
+			
+		#test_FN_events_for_linear_decomp(FNesims, fpexp)
 
 def test_FN_events_for_linear_decomp(FNesims, fpexp): 	
 # now correct the TN events that can be explained by FP explained events
