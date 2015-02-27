@@ -913,4 +913,22 @@ def merge_events_by_type(events, historyScores=None):
 		e.update(historyScores)
 	return(finalevents)
 
-	
+#write an event in a different format
+def write_dat_header(): 
+	return "event_id	event_type	avecost	Lscore	CNval	length	numsegs	prevmean	prevsd	ordmean	ordsd	numhists\n"	
+
+def write_event_dat(event, dat=False): 
+	mystr="\t".join(map(str, [
+	event.id,
+	event.determineEventType(),
+	np.mean(np.array(event.uppercosts + event.lowercosts)),
+	event.likelihood,
+	event.cnval,
+	event.get_Event_length(),
+	event.numsegs,
+	event.prevalmean, event.prevalsd,
+	event.ordermean, event.ordersd,
+	event.numhists]
+	)) + "\n"
+	return mystr
+
