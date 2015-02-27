@@ -199,7 +199,7 @@ class SimAnalysisJob(Target):
 		#breaksfile=open(os.path.join(self.outputdir, "breakpoints.txt"), 'w')
 		breaksfile=""
 		histseg.Global_BINWIDTH=self.binwidth
-		analyze_simulation.analyze_simulation(self.events, self.trueID, self.historyScores, datout, statout, breaksfile)
+		analyze_simulation.analyze_simulation(self.events, self.trueID, self.historyScores, datout, statout, breaksfile, self.outputdir)
 
 class CreateLinksFile(Target): 
 	def __init__(self, pevntsfile, linksfile, totalp): 
