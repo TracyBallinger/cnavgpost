@@ -2,12 +2,13 @@
 
 # For use in determining the number of TP and FP, etc, of events across a CNAVG sampling of histories given that one of the histories is the truth.  This history is what all other will be compared to.  
 import os, sys
-import cnavgpost.mergehistories.event_cycles_module as histseg
 import cPickle as pickle
 import argparse
 import numpy as np
 import re
 import cnavg.linear_decomp as linear_decomp
+import cnavgpost.mergehistories.event_cycles_module as histseg
+import cnavgpost.diagnostics.do_order_correction as do_order_correction 
 
 class EdgeSimulationData:
 	def __init__(self, event, histScores, totalp, refhistoryid=0): 
@@ -64,7 +65,11 @@ class EdgeSimulationData:
 			event.likelihood=0
 		(self.refpreval, self.reforder, self.avecost) = (refpreval, reforder, avecost)
 
-def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh, breaks_fh):
+def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh, breaks_fh, outdir):
+	for event in events:
+		if not event.histories: event.histories=histseg.listout_ranges(event.histRanges)
+	do_order_correction.main(events, 0, historyScores, statsout=os.path.join(outdir, "historystats.txt"))
+	#do_order_correction.main(events, 0, historyScores, usepreval=True)
 	#make the cost of the refhistoryid 0 so that is doesn't get included in the likelihood calculation 
 	myhistScores=np.copy(historyScores)
 	myhistScores[np.where(historyScores[:,0] == refhistoryid),:]=0	 
@@ -80,7 +85,6 @@ def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh,
 	FPesims=[]
 	myEdgeSimData=[] 
 	for event in events:
-		if not event.histories: event.histories=histseg.listout_ranges(event.histRanges)
 		myedgesim=EdgeSimulationData(event, historyScores, totalp, refhistoryid)
 		etype=event.determineEventType()
 		if myedgesim.isTrue==1: 
@@ -229,5 +233,5 @@ if __name__== '__main__':
 	histseg.Global_BINWIDTH=args.binwidth
 	allevents=pickle.load(open(args.pedgs, 'rb'))
 	historyScores=np.loadtxt(args.historystats, dtype=int)
-	analyze_simulation(allevents, args.trueID, historyScores, args.datout, args.stats, args.breaks)
+	analyze_simulation(allevents, args.trueID, historyScores, args.datout, args.stats, args.breaks, "./" )
 
