@@ -6,22 +6,10 @@ import argparse
 import numpy as np
 
 def writedat(event, dat=False):
-	if dat:  
-		mystr="\t".join(map(str, [
-			event.id, 
-			event.determineEventType(), 
-			np.mean(np.array(event.uppercosts + event.lowercosts)),
-			event.likelihood, 
-			event.cnval, 
-			event.get_Event_length(), 
-			event.numsegs,
-			event.prevalmean, event.prevalsd,
-			event.ordermean, event.ordersd, 
-			event.numhists]
-		)) + "\n"
+	if dat: 
+		return histseg.write_event_dat(event) 
 	else: 
-		mystr=str(event)
-	return mystr
+		return str(event)
 
 
 
