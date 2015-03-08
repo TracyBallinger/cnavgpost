@@ -17,7 +17,7 @@ Global_MAXCOST=300
 Global_K=0
 Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
 Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
-Global_SPLITCYCLES=True #do we want to split all figure 8 types into smaller cycles? 
+Global_SPLITCYCLES=False #do we want to split all figure 8 types into smaller cycles? 
 
 # an Event is made up of multiple Braneysegs and some extra info
 class Event:
@@ -87,7 +87,6 @@ class Event:
 		if historyScores is not None: 
 			self.compute_timing_wmeansd(historyScores)
 			self.likelihood=compute_likelihood_histories(self.histories, historyScores, totalp)
-	
 
 	def addseg(self, bseg):
 		self.segs.append(bseg)
@@ -257,21 +256,28 @@ class Event:
 		self.dupsremoved=True
 
 #Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
+#Global_EVENTTYPES=['any', 'amp', 'del', 'inv', 'amdl', 'trns', 'inter', 'intra', 'oth']
 	def determineEventType(self): 
-		mytype=0
+		mytype='any'
+		mychr=None
+		intra=True
 		if len(self.segs) ==0: 
 			self.make_segs_from_str()
-		for seg in self.segs: 
+		for seg in self.segs:
+			if mychr is None and seg.chr != "None": 
+				mychr=seg.chr
+			elif (seg.chr != "None") and (mychr != seg.chr): 
+				intra=False
 			if seg.seg:
 				if seg.cnval<0 and mytype != 2:
-					mytype=2
+					mytype='amp'
 				elif seg.cnval>0 and mytype != 1: 
-					mytype=1
+					mytype='del'
 				else: 
-					mytype=4
+					mytype='amdl'
 			else: 
-				if mytype ==0:
-					mytype=3
+				if mytype =='any':
+					mytype='oth'
 		return mytype
 	
 	def get_Event_length(self):
@@ -279,15 +285,15 @@ class Event:
 		adjlen=0 
 		for seg in self.segs: 
 			if seg.seg: 
-				seglen=max(seglen, seg.end-seg.start+1)
-			else:
-				if seg.chr==seg.chr2:  
-					adjlen=max(adjlen, seg.end-seg.start)
+#				seglen=max(seglen, seg.end-seg.start+1)
+				seglen+=(seg.end-seg.start+1)
+#			else:
+#				if seg.chr==seg.chr2:  
+#					adjlen=max(adjlen, seg.end-seg.start)
 		if seglen>0:
-			len=seglen
+			return seglen
 		else: 
-			len=adjlen	
-		return len	
+			return 0	
 
 	def count_discontsegs(self): 
 		if not self.dupsremoved: 
@@ -311,6 +317,15 @@ class Event:
 		self.numadjs=len(myadjs)
 		self.numdisc=discont 
 	
+	def get_chr_list(self): 
+		mychr=[]
+		for seg in self.segs:
+			if seg.chr != "None":  
+				mychrs.append(seg.chr)
+			if seg.chr2 != "None": 
+				mychrs.append(seg.chr)
+		return "\t".join(map(str, set(mychrs)))
+
 	def check_overlap(self, chr, start, end):
 		for seg in self.segs:
 			if seg.seg: 
