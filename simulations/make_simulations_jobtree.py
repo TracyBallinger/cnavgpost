@@ -133,10 +133,10 @@ class RunShuffleForSim(Target):
 def add_simulation_options(parser): 
 	group = OptionGroup(parser, "Make Simulation Options")
 	group.add_option("--specfile", dest='specfile', help='A file specifying the number of blocks and events to put in each simulation', type='string')
-	group.add_option("--reps", dest='reps', type="int", help="The number of reps to do for each simulation")
+	group.add_option("--reps", dest='reps', type="int", default=5, help="The number of reps to do for each simulation")
 	group.add_option("--outputdir", dest='outputdir', help="The directory to write to")
 	group.add_option("--integer", dest='integer', default=False, action="store_true", help="Use integer simulations rather than metagenomic.")
-	group.add_option("--id", dest='id', type="int", help="an id for the simulation runs.")
+	group.add_option("--id", dest='id', type="int", default=1, help="an id for the simulation runs.")
 	group.add_option("--steps", dest='steps', type="int", default=1000, help="The number of steps per iteration to run.")
 	group.add_option("--runs", dest='runs', type="int", default=10, help="The number of runs per sample to do.")
 	group.add_option("--timeshuffle", dest='timeshuffle', default=False, action="store_true", help="run cn-avg-timeshuffle.py instead of cn-avg.py")
