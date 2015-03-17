@@ -121,11 +121,17 @@ class Braney_seg:
 		(self.chr2, self.end, self.st2) =(x, y, z)
 		
 
-	def adjacency_cross(self, other): 
+	def adjacency_cross(self, other):
+		self.order_ends()
+		other.order_ends() 
 		if ((self.chr == self.chr2 == other.chr == other.chr2) and 
 			(((self.start > other.start and self.start < other.end and self.end > other.end)) or 
 			((self.start < other.start and self.end < other.end and self.end > other.start)))): 
 			return True
+
+	def isbreakpoint(self): 
+		self.order_ends()
+		return  (self.adj and (self.start == (self.end-1)) and (self.chr == self.chr2))
 	
 	def connected_to(self, other): 
 		if ((self.chr == other.chr and self.start == other.start) or  
@@ -193,3 +199,34 @@ def get_direction(firstseg, second, last):
 	elif end_matches_last and start_matches_second: 
 		direction=-1
 	return direction
+
+def determine_4adj_cycle_type(segs, intra): # should be a list of 4 adjacencies
+	for s in segs: 
+		s.order_ends()
+	(adj1, adj2, adj3, adj4) = segs[:4]
+	if intra: # see if it's an inversion, reverse inversion, fusion or fission
+		if ((adj1.adjacency_cross(adj3) and adj1.cnval >0) or 
+			(adj2.adjacency_cross(adj4) and adj2.cnval>0)):
+			type='inv'
+		elif ((adj1.adjacency_cross(adj3) and adj1.cnval <0) or 
+			(adj2.adjacency_cross(adj4) and adj2.cnval<0)):
+			type='rinv'
+		elif ((adj1.isbreakpoint() and adj3.isbreakpoint() and adj1.cnval<0) or 
+			(adj2.isbreakpoint() and adj4.isbreakpoint() and adj2.cnval<0)): 
+			type='fiss'
+		elif ((adj1.isbreakpoint() and adj3.isbreakpoint() and adj1.cnval>0) or 
+			(adj2.isbreakpoint() and adj4.isbreakpoint() and adj2.cnval>0)): 
+			type='fuse'
+		else: 
+			type='oth'
+	else: # it's an interchromosomal set of segments
+		if ((adj1.isbreakpoint() and adj3.isbreakpoint() and adj1.cnval <0) or 			
+			(adj2.isbreakpoint() and adj4.isbreakpoint() and adj2.cnval <0)): 
+			type='tran'
+		elif ((adj1.isbreakpoint() and adj3.isbreakpoint() and adj1.cnval >0) or 			
+			(adj2.isbreakpoint() and adj4.isbreakpoint() and adj2.cnval >0)): 
+			type='rtran'
+		else: 
+			type='oth'
+	return type
+

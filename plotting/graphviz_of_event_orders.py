@@ -171,7 +171,7 @@ def scatter_with_given_annotation(events, links, annfn, genelist):
 	plt.xlabel("Number of Genes hit (thousands)")
 	plt.ylim(0,1.1)
 
-def plot_timing_vs_gene_coordinate(edat, ldat, genename=""): 
+#def plot_timing_vs_gene_coordinate(edat, ldat, genename=""): 
 	
 
 

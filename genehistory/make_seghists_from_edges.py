@@ -14,32 +14,38 @@ def create_seghists_from_eventsegs(esegs, histScores): #Note that the edges must
 	for e in esegs[1:]:
 #		sys.stderr.write("%sworking_seghists: %d\tmyseghists: %d\n" % (str(e), len(working_seghists), len(myseghists)))
 		tmpseghists=[]
+		merged=False
 		for seghist in working_seghists: 
-			if seghist.overlaps(e): 
-				new_seghists=merge_in_edge(e, seghist)
-#				sys.stderr.write("overlaps, %d\n" % len(new_seghists))
-				tmpseghists+=new_seghists
-			elif seghist.comes_after(e): 
-			 	tmpseghists.append(seghist)
+			# if it's a break the start and end will be equal.  
+			# We don't want to merge breaks with segments, only with equivalent breaks. 
+			if ((e.start == e.end and seghist.samelocus(e)) or 
+				(e.start < e.end and seghist.start < seghist.end and seghist.overlaps(e))): 
+					new_seghists=merge_in_edge(e, seghist)
+					tmpseghists+=new_seghists
+					merged=True
+					sys.stderr.write("samelocus %d\n%s%s" % (len(tmpseghists), str(e), str(seghist)))
+			elif seghist.overlaps(e) or seghist.comes_after(e): 
+		 		tmpseghists.append(seghist)
 			elif seghist.comes_before(e): 
 				myseghists.append(seghist)
 		lastseg=working_seghists[-1]
 		if lastseg.overlaps(e) and e.end > lastseg.end: 
 			newseg=SegmentHistory(e)
+			merged=True
 			newseg.start=working_seghists[-1].end+1
 			tmpseghists.append(newseg)
-		elif lastseg.comes_before(e): 
+		elif merged==False: 
 			tmpseghists.append(SegmentHistory(e))
+			merged=True
 		working_seghists=tmpseghists
 	myseghists+=working_seghists
-	return myseghists
+#	return myseghists
 
-#	sys.stderr.write("done making seghists, now creating the CN profiles.\n")
-#	pickle.dump(myseghists, open("seghists.pck", 'w'), pickle.HIGHEST_PROTOCOL)
-#	for sgh in myseghists: 
-#		create_CNprofiles_from_Edges(sgh, histScores, totalp)
-#	sys.stderr.write("done making CN profiles\n")
-#	return(myseghists)
+	sys.stderr.write("done making seghists, now creating the CN profiles.\n")
+	for sgh in myseghists: 
+		create_CNprofiles_from_Edges(sgh, histScores, totalp)
+	sys.stderr.write("done making CN profiles\n")
+	return(myseghists)
 
 def make_esegs_from_events(events): 
 	breakpointcn=-10
@@ -59,7 +65,6 @@ def make_esegs_from_events(events):
 	return sortedesegs	
 
 if __name__ == "__main__": 
-	import argparse
 	parser = argparse.ArgumentParser(description='Will take the edges from events and split the genome at breakpoints, with histories for each segment.')
 	parser.add_argument('pedges', help='a pickled files of event edges.')
 	parser.add_argument('hstats', help='historystats.txt file')
@@ -72,8 +77,8 @@ if __name__ == "__main__":
 	seghists=create_seghists_from_eventsegs(myesegs, histScores)
 	fh=open(args.outf, 'w')
 	for sgh in seghists: 
-		fh.write("sgh\t"+str(sgh))
+		fh.write(str(sgh))
 	fh.close()
-	pickle.dump(seghists, open("seghists.pk", 'w'), pickle.HIGHEST_PROTOCOL)
+#	pickle.dump(seghists, open("seghists.pk", 'w'), pickle.HIGHEST_PROTOCOL)
 
 	

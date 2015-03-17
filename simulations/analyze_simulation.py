@@ -10,6 +10,8 @@ import cnavg.linear_decomp as linear_decomp
 import cnavgpost.mergehistories.event_cycles_module as histseg
 import cnavgpost.diagnostics.do_order_correction as do_order_correction 
 
+#Global event_type_dict('amp') # fill this in. 
+
 class EdgeSimulationData:
 	def __init__(self, event, histScores, totalp, refhistoryid=0): 
 		self.event=event
@@ -75,7 +77,7 @@ def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh,
 	myhistScores[np.where(historyScores[:,0] == refhistoryid),:]=0	 
 	totalp=histseg.compute_likelihood_histories(myhistScores[:,0], myhistScores)
 	sys.stderr.write("totalp is %f\n" % totalp)
-	types=histseg.Global_EVENTTYPES
+	types=range(len(set(event_type_dict.values())))
 	TP=np.zeros(len(types), dtype=int)
 	FP=np.zeros(len(types), dtype=int)
 	TN=np.zeros(len(types), dtype=int)
@@ -86,7 +88,7 @@ def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh,
 	myEdgeSimData=[] 
 	for event in events:
 		myedgesim=EdgeSimulationData(event, historyScores, totalp, refhistoryid)
-		etype=event.determineEventType()
+		etype=event_type_dict(event.determineEventType())
 		if myedgesim.isTrue==1: 
 			TP[0]+=1
 			TP[etype]+=1
@@ -204,7 +206,6 @@ def checkForCancellingEdges(edgesims):
 	preseg=sortededgesims[0]
 	numpairs=0
 	TN=[0,0,0,0]
-	types=histseg.Global_EVENTTYPES
 	for edgesim in sortededgesims[1:]: 
 		if edgesim.segstr == preseg.segstr and (edgesim.cnval == -1 * preseg.cnval):
 			numpairs+=1

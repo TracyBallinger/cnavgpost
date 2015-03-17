@@ -19,11 +19,20 @@ class EventSegment:
 
 class SegmentHistory: 
 	def __init__(self, eseg): 
+		if isinstance(eseg, EventSegment):
 			self.chr=eseg.chr
 			self.start=eseg.start 
 			self.end=eseg.end 
 			self.esegs=[eseg]
 			self.CNprofiles=[]
+		elif isinstance(eseg, str): 
+			dat=eseg.strip().split("\t")
+			self.chr=dat[0]
+			self.start=dat[1]
+			self.end=dat[2]
+			self.esegs=[]
+			self.CNprofiles=[CNprofile(eseg)]
+
 
 	def __str__(self):
 		fstr=""
@@ -45,8 +54,8 @@ class SegmentHistory:
 	def samelocus(self, other):
 		return ((self.chr == other.chr) and (self.start == other.start) and (self.end==other.end))
 
-	def overlaps(self, other):
-			return (self.chr == other.chr and self.start <= other.end and self.end >= other.start)
+	def overlaps(self, other): 
+		return (self.chr == other.chr and self.start <= other.end and self.end >= other.start)
 
 	def comes_before(self, other):
 		return ((self.chr < other.chr) or (self.chr == other.chr and self.end < other.start))
@@ -56,6 +65,23 @@ class SegmentHistory:
 
 	def appendvals(self, eseg): 
 		self.esegs.append(eseg)
+
+class CNprofile: 
+	def __init__(self, line=""):
+		if line=="": 
+			self.likelihood=0
+			self.numhists=0
+			self.pvals=[]
+			self.pvalsd=[]
+			self.cnvals=[]
+		else: 
+			dat=line.strip().split("\t")
+			self.likelihood=float(dat[3])
+			self.numhists=int(dat[4])
+			self.cnvals=map(float, dat[5].split(','))	
+			self.pvals=map(float, dat[6].split(','))	
+			self.pvalsd=map(float, dat[7].split(','))	
+			
 
 def create_CNprofiles_from_Edges(self, histScores, totalp=0):
 	edgelist=self.esegs 
@@ -123,14 +149,6 @@ def get_unique_rows(hprofiles):
 	uprofiles=hprofiles[uidx]
 	# get rid of the nothing profiles where the CN doesn't change at all. 
 	return(ridx, uprofiles)
-
-class CNprofile: 
-	def __init__(self): 
-		self.likelihood=0
-		self.numhists=0
-		self.pvals=[]
-		self.pvalsd=[]
-		self.cnvals=[]
 
 # given an edge and a segment history, it will merge the edge into the seghist, splitting the seghist if necessary, but will not return a segment outside the boundaries of the original segment. 
 def merge_in_edge(edge, seghist):
@@ -224,5 +242,22 @@ def incorporate_edge(edge, seghist):
 				seghist.appendvals(edge)
 				seghist.start=edge.end+1
 	return(new_segments)
+
+
+# The Segment file should be ordered by genome coordinate so that the same coordinates are sequential.  Also, they won't overlap, although that doesn't matter for this. 
+def read_in_segs(segfn): 
+	mysegs=[]
+	currseg=None
+	for l in open(segfn): 
+		segh=SegmentHistory(l)
+		if currseg is not None:
+			if segh.samelocus(currseg):
+				currseg.CNprofiles += segh.CNprofiles
+			else: 
+				mysegs.append(currseg)
+				currseg=segh
+	return mysegs
+
+
 
 	

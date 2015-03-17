@@ -15,7 +15,6 @@ from cnavgpost.mergehistories.braney_lines_module import *
 Global_BINWIDTH=10000
 Global_MAXCOST=300 
 Global_K=0
-Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
 Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
 Global_SPLITCYCLES=True #do we want to split all figure 8 types into smaller cycles? 
 
@@ -263,38 +262,63 @@ class Event:
 			self.segs=nodup_segs
 		self.dupsremoved=True
 
-#Global_EVENTTYPES=['any', 'amp', 'del', 'adj', 'oth']
-#Global_EVENTTYPES=['any', 'amp', 'del', 'inv', 'amdl', 'trns', 'inter', 'intra', 'oth']
 	def determineEventType(self): 
+		mytype='any'
+		if len(self.segs)==0: 
+			self.make_segs_from_str()
+		for seg in self.segs: 
+			if seg.seg: 
+				if seg.cnval <0 and mytype != 2: 
+					mytype='del'
+				elif seg.cnval >0 and mytype !=1: 
+					mytype='amp'
+				else: 
+					mytype='amdl'
+		if mytype=='any':
+			mytype='oth'
+		return mytype
+	
+	def CharacterizeEvent(self): 
 		mytype='any'
 		mychr=None
 		intra=True
+		numfuse=0
+		numfiss=0
+		numsegs=0
 		if len(self.segs) ==0: 
 			self.make_segs_from_str()
+		if len(self.segs)>4: 
+			type='oth'
 		for seg in self.segs:
 			if mychr is None and seg.chr != "None": 
 				mychr=seg.chr
 			elif (seg.chr != "None") and (mychr != seg.chr): 
 				intra=False
 			if seg.seg:
+				numsegs+=1
 				if seg.cnval<0 and mytype != 2:
-					mytype='amp'
-				elif seg.cnval>0 and mytype != 1: 
 					mytype='del'
+				elif seg.cnval>0 and mytype != 1: 
+					mytype='amp'
 				else: 
 					mytype='amdl'
-			else: 
-				if mytype =='any':
-					mytype='oth'
-		return mytype
+			elif seg.isbreakpoint(): 
+				if seg.cnval<0: 
+					numfuse+=1
+				else: 
+					numfiss+=1
+		if numsegs==0 and len(self.segs)==4: 
+			type=determine_4adj_cycle_type(self.segs, intra)
+		return (mytype, intra, numfuse, numfiss, numsegs, len(self.segs)) 
 	
 	def get_Event_length(self):
 		seglen=0
-		adjlen=0 
+		if len(self.segs)==0: 
+			self.make_segs_from_segstr()
 		for seg in self.segs: 
 			if seg.seg: 
 #				seglen=max(seglen, seg.end-seg.start+1)
-				seglen+=(seg.end-seg.start+1)
+				seglen+=(abs(seg.end-seg.start)+1)
 #			else:
 #				if seg.chr==seg.chr2:  
 #					adjlen=max(adjlen, seg.end-seg.start)
@@ -337,6 +361,7 @@ class Event:
 	def check_overlap(self, chr, start, end):
 		for seg in self.segs:
 			if seg.seg: 
+				seg.order_ends()
 				if (seg.chr == chr and seg.start < end and seg.end>start): 
 					return True
 			elif seg.adj: 
@@ -375,7 +400,6 @@ class Event:
 			self.ordermean=-1
 			self.ordersd=-1
 			
-
 def sort_segs_in_cycle(seglist):
 	segs=sorted(seglist, key=lambda x: x.cycleorder)
 	currentseg=segs.pop(0)
@@ -538,7 +562,7 @@ def get_overlapping_events(chr, start, end, evntsfn ):
 		if (myevent.check_overlap(chr, start, end)):
 			overlapping_events.append(myevent)
 
-#### get_overlapping_events #######################
+#### get_overlapping_events_tabix #######################
 # Input: a chromosome, start and end, and the filename of a .braney file in tabix form
 # Output: a list of Events, where either an adjancency or a segment overlaps the region 
 def get_overlapping_events_tabix(chr, start, end, tabixfn, tabixfn2):
@@ -832,82 +856,6 @@ def get_breakpoints(events, historyid):
 	return breaklocs
 
 def get_event_costs_over_time(events, historyScores, run):
-	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1
-	myeventids=["history_cost"]
-	hidmin=run*Global_BINWIDTH
-	hidmax=hidmin+runlen
-	tmpi=np.where((historyScores[:,0]>=hidmin) & (historyScores[:,0]<=hidmax))[0]
-	costsarray=np.mean(historyScores[tmpi,1:3], axis=1)
-	mydata=costsarray
-	for event in events: 
-		myeventids.append(event.id)
-		event.histories=listout_ranges(event.histRanges)
-		hids=np.array(event.histories)
-		uppercosts=np.array(event.uppercosts)
-		lowercosts=np.array(event.lowercosts)
-		event_is=np.where((hids<=hidmax) & (hids>=hidmin))[0]
-		eventcosts=np.ones(runlen)* -1
-		for i in event_is:
-			myi=np.fmod(hids[i], Global_BINWIDTH) 
-			eventcosts[myi]=np.mean((event.uppercosts[i], event.lowercosts[i]))
-		mydata=np.vstack((mydata, eventcosts))	
-	return((myeventids, mydata))
-
-
-def compute_lscore_over_time(events, historyScores, run, outputfn): 
-	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1
-	myrun=run
-	myeventids=["total"]
-	myruncounts=[1]
-	hidmin=myrun*Global_BINWIDTH
-	hidmax=hidmin+runlen
-	tmpi=np.where((historyScores[:,0]>=hidmin) & (historyScores[:,0]<=hidmax))[0]
-	costsarray=np.mean(historyScores[tmpi,1:3], axis=1)
-	totalscores=np.cumsum(np.exp(-1*Global_K*costsarray))
-	mydata=totalscores/totalscores[runlen-1]
-	for event in events:
-		event.histories=listout_ranges(event.histRanges)	
-		myeventids.append(event.id)
-		sys.stderr.write("working on event: %s\n" % (event.id)) 
-		myruncounts.append(event.numsims)
-		myhids=hids[np.where((hids<= hidmax) & (hids>=hidmin))]
-		myhis = np.fmod(hids, Global_BINWIDTH)
-		for i in xrange(myhis.size): 
-			totalscore = totalscores[myhis[i]] 
-			lscore = compute_likelihood_histories(myhids[:(i+1)], historyScores, totalscore)
-			lscores[myhis[i]]=lscore
-		for i in xrange(max(myhis),hidmax): 
-			totalscore = totalscores[i] 
-			lscore = compute_likelihood_histories(myhids, historyScores, totalscore)
-			lscores[i]=lscore
-		mydata = np.vstack((mydata, lscores))
-	np.savetxt(outputfn, mydata.T, delimiter='\t', header="\t".join(myeventids) + "\n" + "\t".join(map(str, myruncounts)))
-
-# This will merge events together how?... 	  	
-# I DON"T THINK THIS IS EVER USED... 
-def merge_events(events): 
-	newevent=Event(events[0].segs)
-	newevent.histories=events[0].histories
-	newevent.uppercosts=events[0].uppercosts
-	newevent.lowercosts=events[0].lowercosts
-	newevent.orders=events[0].orders
-	newevent.prevals=events[0].prevals
-	for event in events[1:]:
-		for i in xrange(len(event.histories)):
-			historyid = event.histories[i]
-			if historyid in newevent.histories: 
-				i2=newevent.histories.index(historyid)
-				if event.orders[i] < newevent.orders[i2]: 
-					# ADD SPLITOFF EVENTS HERE?
-					newevent.orders[i2]=event.orders[i]
-					newevent.prevals[i2]=event.prevals[i]
-			else: 
-				newevent.histories.append(historyid)
-				newevent.uppercosts.append(event.uppercosts[i])
-				newevent.lowercosts.append(event.lowercosts[i])
-				newevent.orders.append(event.orders[i])
-				newevent.prevals.append(event.prevals[i])
-	# SORT THE VALUES BY HISTORY ID
 	newevent.id = "%d.%d" % (newevent.histories[0], newevent.orders[0]) 
 	return newevent
 
