@@ -18,8 +18,8 @@ def cluster_events(events):
 
 def main(args): 
 	events=pickle.load(open(args.pevnts, 'rb'))
-	for e in events: 
-		e.histories=histseg.listout_ranges(e.histRanges)
+	#for e in events: 
+	#	e.histories=histseg.listout_ranges(e.histRanges)
 	mymat=cluster_events(events)	
 	np.savetxt(args.out, mymat, fmt='%d', delimiter="\t")
 

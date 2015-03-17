@@ -39,8 +39,8 @@ if __name__ == '__main__':
 				if event.check_overlap(chr, int(start), int(end)): 
 					sys.stdout.write(writedat(event, args.dat))
 	else: 
-		for e in events: 
-			e.histories=histseg.listout_ranges(e.histRanges)
+	#	for e in events: 
+	#		e.histories=histseg.listout_ranges(e.histRanges)
 		if args.historyid != None: 
 			hid=args.historyid
 			sys.stderr.write("hid is %d\n" % hid)

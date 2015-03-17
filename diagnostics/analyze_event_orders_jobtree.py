@@ -71,7 +71,7 @@ class RunEventOrderAnalysis(Target):
 		events=pickle.load(open(pevntsfile, 'rb'))
 		myevents=[]
 		for e in events:
-			e.histories=histseg.listout_ranges(e.histRanges)
+			#e.histories=histseg.listout_ranges(e.histRanges)
 			if e.likelihood > pvalcutoff:
 					myevents.append(e)
 		else:

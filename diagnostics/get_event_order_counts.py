@@ -77,8 +77,8 @@ def get_order_counts(eventA, eventB, simulation):
 	ab=0
 	ba=0
 	truth=-1
-	eventA.histories=ecycles.listout_ranges(eventA.histRanges)	
-	eventB.histories=ecycles.listout_ranges(eventB.histRanges)
+	#eventA.histories=ecycles.listout_ranges(eventA.histRanges)	
+	#eventB.histories=ecycles.listout_ranges(eventB.histRanges)
 	aindices=[]
 	bindices=[]
 	for ai in xrange(len(eventA.histories)): 
@@ -114,7 +114,7 @@ def count_earlylate_with_correction(events, historyScores, outfn1, outfn2):
 	simhist=0
 	for j in xrange(len(events)): 
 		e=events[j]
-		e.histories=ecycles.listout_ranges(e.histRanges)
+		#e.histories=ecycles.listout_ranges(e.histRanges)
 		hindices = ecycles.historyids_to_indices(e.histories, historyScores)
 		for h in xrange(len(e.histories)): 
 			i=hindices[h]
@@ -158,7 +158,7 @@ def count_earlylate_with_correction(events, historyScores, outfn1, outfn2):
 
 
 def count_early_vs_late(event, historylengths, simulation):
-	event.histories=ecycles.listout_ranges(event.histRanges)
+	#event.histories=ecycles.listout_ranges(event.histRanges)
 	hindices = ecycles.historyids_to_indices(event.histories, historylengths) 
 	histlens= historylengths[hindices,1]
 	early=0
@@ -208,7 +208,7 @@ def main(pevntsfile, outdir, simulation, pvalcutoff, histstatsfn, shufstart):
 	events=pickle.load(open(pevntsfile, 'rb'))
 	myevents=[]
 	for e in events:
-		e.histories=ecycles.listout_ranges(e.histRanges) 
+		#e.histories=ecycles.listout_ranges(e.histRanges) 
 		if e.likelihood > pvalcutoff:
 			myevents.append(e)
 	else:

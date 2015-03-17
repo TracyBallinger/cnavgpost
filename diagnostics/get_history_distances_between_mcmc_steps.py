@@ -66,6 +66,6 @@ if __name__ == '__main__':
 		events=histseg.make_events_from_braneyfn(args.braneyfile)
 	elif args.pevntsfile: 
 		events=pickle.load(open(args.pevntsfile, 'rb'))
-		for e in events: 
-			e.histories=histseg.listout_ranges(e.histRanges)
+		#for e in events: 
+		#	e.histories=histseg.listout_ranges(e.histRanges)
 	get_history_distances_between_mcmc_steps(events, args.refhistoryid, args.refhistoryid2, args.numsteps, args.stepsize, args.stepsize2, sys.stdout) 

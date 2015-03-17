@@ -17,6 +17,7 @@ Global_MAXCOST=300
 Global_K=0
 Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
 Global_SPLITCYCLES=True #do we want to split all figure 8 types into smaller cycles? 
+Global_EVENTTYPES = ['any', 'amp', 'del', 'oth', 'amdl']
 
 # an Event is made up of multiple Braneysegs and some extra info
 class Event:
@@ -98,14 +99,14 @@ class Event:
 #		if not self.histRanges:
 #			self.histRanges=getRanges(self.histories)
 #		(self.numsims, self.indyRunCounts) = getIndRunCounts(self.histories)
-		self.histories=[]
+		#self.histories=[]
 
 	# Unpacking of an event is done after it's been read in from a pickled file.  This basically undoes the trim (above). 
 	def unpack(self):
-		if not self.segs: 
+		if not self.segs:
 			self.make_segs_from_str()
-		if not self.histories: 	
-			self.histories=listout_ranges(self.histRanges)	
+		#if not self.histories: 	
+		#	self.histories=listout_ranges(self.histRanges)	
 	
 	# This makes a string from the genomic coordinates of the event (event being a flow in the CN-AVG).  
 	# The CN for the event will have the sign of whatever the first edge is.  The sign of the edges alternate after that. 	
@@ -114,8 +115,7 @@ class Event:
 		self.merge_adjacent_segs()
 		self.ordersegs()
 		seg0=self.segs[0]
-		if seg0.cnval <0: 
-			self.cnval = self.cnval * -1
+		self.cnval = seg0.cnval 
 		mysegs=[]
 		for seg in self.segs: 
 	#		if seg.cnval < 0: sign="-"
@@ -195,32 +195,34 @@ class Event:
 		dummyadjline="A\t%s\t%s\t%s\t%s\t%s\t%s\t%f\t%f\t%d\t0\t0\t%d\t%d\t0\t0\t0\t0\t0\n"
 		self.segs=[]
 		cycleorder=0
-		
-		minhist=min(listout_ranges(self.histRanges))
+		minhist=min(self.histories)
 		for (i, loc) in enumerate(mysegs): 
-			m=re.search('([+|-])/(\w+):(-?\d+)-(-?\d+)', loc)			
-			if m: 
-				coords=m.group(2,3,4)
-				bseg=Braney_seg(dummysegline % (coords[0], coords[1], coords[2], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
-				sign=m.group(1)
-				if sign=="+": bseg.cnval = bseg.cnval * -1 #opposite sign for segments
-			m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)	
-			if m: 
-				coords=m.group(2,3,4,5,6,7)
-				bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
-				sign=m.group(1)
-				if sign=="-": bseg.cnval = bseg.cnval * -1
 			m=re.search('(\w+):(-?\d+)-(-?\d+)', loc)			
 			if m: 
 				coords=m.group(1,2,3)
 				bseg=Braney_seg(dummysegline % (coords[0], coords[1], coords[2], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
 				#switch the sign of the CN for odd segs in the cycle
-				if (i % 2) == 0: bseg.cnval = bseg.cnval * -1  
-			m=re.search('(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
-			if m: 	
-				coords=m.group(1,2,3,4,5,6)
-				bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
 				if (i % 2) == 1: bseg.cnval = bseg.cnval * -1  
+			else: 
+				m=re.search('(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
+				if m: 	
+					coords=m.group(1,2,3,4,5,6)
+					bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+					if (i % 2) == 1: bseg.cnval = bseg.cnval * -1  
+				else: 
+					m=re.search('([+|-])/(\w+):(-?\d+)-(-?\d+)', loc)			
+					if m: 
+						coords=m.group(2,3,4)
+						bseg=Braney_seg(dummysegline % (coords[0], coords[1], coords[2], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+						sign=m.group(1)
+						if sign=="+": bseg.cnval = bseg.cnval
+					else: 
+						m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)	
+						if m: 
+							coords=m.group(2,3,4,5,6,7)
+							bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+							sign=m.group(1)
+							if sign=="-": bseg.cnval = bseg.cnval * -1
 			self.segs.append(bseg)
 			cycleorder+=1
 	
@@ -262,20 +264,21 @@ class Event:
 			self.segs=nodup_segs
 		self.dupsremoved=True
 
+#Global_EVENTTYPES = ['any', 'amp', 'del', 'oth', 'amdl']
 	def determineEventType(self): 
-		mytype='any'
+		mytype=0
 		if len(self.segs)==0: 
 			self.make_segs_from_str()
 		for seg in self.segs: 
 			if seg.seg: 
 				if seg.cnval <0 and mytype != 2: 
-					mytype='del'
+					mytype=1
 				elif seg.cnval >0 and mytype !=1: 
-					mytype='amp'
+					mytype=2
 				else: 
-					mytype='amdl'
-		if mytype=='any':
-			mytype='oth'
+					mytype=4
+		if mytype==0:
+			mytype=3
 		return mytype
 	
 	def CharacterizeEvent(self): 
@@ -752,7 +755,7 @@ def get_events_from_cnavgdir(cnavgdir, historyScores, totalp=0):
 	for evnt in finalevents:
 		evnt.update(historyScores)
 		evnt.likelihood=compute_likelihood_histories(evnt.histories, historyScores, totalp)
-		#evnt.trim()
+		evnt.trim()
 	return finalevents
 
 def merge_pevnts_files(pevntsfiles, outputfile, historyScores, totalp): 

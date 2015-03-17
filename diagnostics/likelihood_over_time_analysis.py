@@ -84,8 +84,8 @@ def get_likelihood_over_time(historycosts, costsarray, k):
 		
 	
 def make_event_costs_array(event, historyScores, numruns, runlen): 
-	if event.histories==[]: 
-		event.histories=histseg.listout_ranges(event.histRanges)
+	#if event.histories==[]: 
+	#	event.histories=histseg.listout_ranges(event.histRanges)
 	hids=np.array(event.histories, dtype=int)
 	his=histseg.historyids_to_indices(hids, historyScores)
 	eventcosts=np.ones((runlen*numruns))* -1

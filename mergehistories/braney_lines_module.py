@@ -18,7 +18,7 @@ class Braney_seg:
 			self.chr2=self.chr
 			self.end=int(data[2])
 			self.st2=None
-			self.cnval=-1 * float(data[3])
+			self.cnval=float(data[3])
 			self.preval=float(data[4])
 			self.historyid=int(data[5])
 			self.cycleorder=int(data[8])
