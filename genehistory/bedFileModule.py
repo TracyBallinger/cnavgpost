@@ -33,6 +33,9 @@ class BedEntry:
 	def comes_after(self, other): 
 		return ((self.chr > other.chr) or (self.chr==other.chr and self.start>other.start))
 
+	def overlaps(self, region): 
+		return ((self.chr == region.chr) and (self.start <= region.end) and (self.end >= region.start))
+
 	def overlap(self, region): 
 		overlap=0
 		if (self.chr == region.chr): 

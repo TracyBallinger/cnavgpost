@@ -18,8 +18,8 @@ class Braney_seg:
 			self.chr2=self.chr
 			self.end=int(data[2])
 			self.st2=None
-			self.cnval=float(data[3])
 			self.preval=float(data[4])
+			self.cnval=round(float(data[3])/self.preval)
 			self.historyid=int(data[5])
 			self.cycleorder=int(data[8])
 			self.order=int(data[9])
@@ -37,8 +37,8 @@ class Braney_seg:
 			self.chr2=data[4]
 			self.end=int(data[5])
 			self.st2=data[6]
-			self.cnval=float(data[7])
 			self.preval=float(data[8])
+			self.cnval=round(float(data[7])/self.preval)
 			self.historyid=int(data[9])
 			self.cycleorder=int(data[12])
 			self.order=int(data[13])		
@@ -52,9 +52,9 @@ class Braney_seg:
 
 	def __str__(self):
 		if self.seg:
-			return "%s\t%d\t%d\t%f\t%f\t%d\t0\t0\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n" % (self.chr, self.start, self.end, self.cnval, self.preval, self.historyid, self.cycleorder, self.order, self.upperHistCost, self.lowerHistCost, self.upperEventCost, self.lowerEventCost, self.ptrid)
+			return "%s\t%d\t%d\t%f\t%f\t%d\t0\t0\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n" % (self.chr, self.start, self.end, self.cnval*self.preval, self.preval, self.historyid, self.cycleorder, self.order, self.upperHistCost, self.lowerHistCost, self.upperEventCost, self.lowerEventCost, self.ptrid)
 		else: 
-			return "A\t%s\t%d\t%s\t%s\t%d\t%s\t%f\t%f\t%d\t0\t0\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n" % (self.chr, self.start, self.st1, self.chr2, self.end, self.st2, self.cnval, self.preval, self.historyid, self.cycleorder, self.order, self.upperHistCost, self.lowerHistCost, self.upperEventCost, self.lowerEventCost, self.ptrid)
+			return "A\t%s\t%d\t%s\t%s\t%d\t%s\t%f\t%f\t%d\t0\t0\t%d\t%d\t%d\t%d\t%d\t%d\t%s\n" % (self.chr, self.start, self.st1, self.chr2, self.end, self.st2, self.cnval * self.preval, self.preval, self.historyid, self.cycleorder, self.order, self.upperHistCost, self.lowerHistCost, self.upperEventCost, self.lowerEventCost, self.ptrid)
 
 	def __eq__(self, other):
 		vals_to_check=['adj', 'chr','chr2', 'start', 'end', 'st1', 'st2', 'cnval']

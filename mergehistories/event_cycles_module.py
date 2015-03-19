@@ -16,7 +16,7 @@ Global_BINWIDTH=10000
 Global_MAXCOST=300 
 Global_K=0
 Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
-Global_SPLITCYCLES=True #do we want to split all figure 8 types into smaller cycles? 
+Global_SPLITCYCLES=False #do we want to split all figure 8 types into smaller cycles? 
 Global_EVENTTYPES = ['any', 'amp', 'del', 'oth', 'amdl']
 
 # an Event is made up of multiple Braneysegs and some extra info
@@ -48,7 +48,7 @@ class Event:
 			(self.numhists, self.numsims)=(1,1)
 			(self.prevalmean, self.prevalsd)=(bseglist[0].preval, "NA")
 			(self.ordermean, self.ordersd)=(bseglist[0].order, "NA")
-			self.cnval=round(abs(bseglist[0].cnval/bseglist[0].preval), 2)
+			self.cnval=bseglist[0].cnval
 			self.segstr=""
 			(self.numsegs, self.numadjs, self.numdisc) = (0 , 0,0)	
 			self.histories=[bseglist[0].historyid]
@@ -200,14 +200,14 @@ class Event:
 			m=re.search('(\w+):(-?\d+)-(-?\d+)', loc)			
 			if m: 
 				coords=m.group(1,2,3)
-				bseg=Braney_seg(dummysegline % (coords[0], coords[1], coords[2], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+				bseg=Braney_seg(dummysegline % (coords[0], coords[1], coords[2], self.cnval*self.prevalmean, self.prevalmean, minhist, cycleorder, self.ordermean))
 				#switch the sign of the CN for odd segs in the cycle
 				if (i % 2) == 1: bseg.cnval = bseg.cnval * -1  
 			else: 
 				m=re.search('(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
 				if m: 	
 					coords=m.group(1,2,3,4,5,6)
-					bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval, self.prevalmean, minhist, cycleorder, self.ordermean))
+					bseg=Braney_seg(dummyadjline % (coords[0], coords[1], coords[2], coords[3], coords[4], coords[5], self.cnval * self.prevalmean, self.prevalmean, minhist, cycleorder, self.ordermean))
 					if (i % 2) == 1: bseg.cnval = bseg.cnval * -1  
 				else: 
 					m=re.search('([+|-])/(\w+):(-?\d+)-(-?\d+)', loc)			
@@ -299,10 +299,10 @@ class Event:
 				intra=False
 			if seg.seg:
 				numsegs+=1
-				if seg.cnval<0 and mytype != 2:
-					mytype='del'
-				elif seg.cnval>0 and mytype != 1: 
+				if seg.cnval<0 and mytype !='del':#the sign is opposite for segments
 					mytype='amp'
+				elif seg.cnval>0 and mytype !='amp': 
+					mytype='del'
 				else: 
 					mytype='amdl'
 			elif seg.isbreakpoint(): 
@@ -870,7 +870,7 @@ def merge_events_by_type(events, historyScores=None):
 	unique_events=[]
 	eventA=sevents[0]
 	for eventB in sevents[1:]: 
-		if eventB.segstr == eventA.segstr:  #don't need to look at CN because we only care about direction change, and this is in the segstr
+		if eventB.segstr == eventA.segstr and ((eventB.cnval * eventA.cnval) >0) :  
 			eventA.add_Event_data(eventB)
 		else: 
 			unique_events.append(eventA)

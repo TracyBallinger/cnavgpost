@@ -1,7 +1,7 @@
 # Module for merging different edges together into a set of CN changes for a segment of the genome. 
 import numpy as np
 import cnavgpost.mergehistories.event_cycles_module as ecycles 
-import copy
+import copy, sys
 
 class EventSegment: 
 	def __init__(self, event, chrm, start, end): 
@@ -28,8 +28,8 @@ class SegmentHistory:
 		elif isinstance(eseg, str): 
 			dat=eseg.strip().split("\t")
 			self.chr=dat[0]
-			self.start=dat[1]
-			self.end=dat[2]
+			self.start=int(dat[1])
+			self.end=int(dat[2])
 			self.esegs=[]
 			self.CNprofiles=[CNprofile(eseg)]
 
@@ -256,6 +256,9 @@ def read_in_segs(segfn):
 			else: 
 				mysegs.append(currseg)
 				currseg=segh
+		else: 
+			currseg=segh
+	mysegs.append(currseg)
 	return mysegs
 
 

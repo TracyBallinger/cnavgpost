@@ -10,41 +10,52 @@ import cnavgpost.mergehistories.event_cycles_module as ecycles
 def create_seghists_from_eventsegs(esegs, histScores): #Note that the edges must be sorted by segstr.  
 	totalp=ecycles.compute_totalp(histScores)
 	myseghists=[]
-	working_seghists=[SegmentHistory(esegs[0])]
+	firstseg=SegmentHistory(esegs[0])
+	working_seghists=[firstseg]
+	lastseg=None #keep track of the last location for segments
+	if firstseg.start < firstseg.end: lastseg=firstseg
 	for e in esegs[1:]:
-#		sys.stderr.write("%sworking_seghists: %d\tmyseghists: %d\n" % (str(e), len(working_seghists), len(myseghists)))
+#		sys.stderr.write("eseg\t%sworking_seghists: %d\tmyseghists: %d\n" % (str(e), len(working_seghists), len(myseghists)))
 		tmpseghists=[]
 		merged=False
-		for seghist in working_seghists: 
+		for seghist in working_seghists:
+#			sys.stderr.write("working:" + str(seghist)) 
 			# if it's a break the start and end will be equal.  
 			# We don't want to merge breaks with segments, only with equivalent breaks. 
 			if ((e.start == e.end and seghist.samelocus(e)) or 
-				(e.start < e.end and seghist.start < seghist.end and seghist.overlaps(e))): 
+				((e.start < e.end) and (seghist.start < seghist.end) and seghist.overlaps(e))): 
 					new_seghists=merge_in_edge(e, seghist)
 					tmpseghists+=new_seghists
 					merged=True
-					sys.stderr.write("samelocus %d\n%s%s" % (len(tmpseghists), str(e), str(seghist)))
+					#sys.stderr.write("samelocus %d\n%s%s" % (len(tmpseghists), str(e), str(seghist)))
 			elif seghist.overlaps(e) or seghist.comes_after(e): 
 		 		tmpseghists.append(seghist)
 			elif seghist.comes_before(e): 
 				myseghists.append(seghist)
-		lastseg=working_seghists[-1]
-		if lastseg.overlaps(e) and e.end > lastseg.end: 
+		if merged==True and (e.end > e.start) and (e.end > lastseg.end): 
 			newseg=SegmentHistory(e)
-			merged=True
-			newseg.start=working_seghists[-1].end+1
+			newseg.start=lastseg.end+1
 			tmpseghists.append(newseg)
-		elif merged==False: 
-			tmpseghists.append(SegmentHistory(e))
+			lastseg=newseg
 			merged=True
+		elif merged==False: 
+			newseg=SegmentHistory(e)
+			tmpseghists.append(newseg)
+			if ((e.start < e.end) and 
+				(((lastseg is not None) and (lastseg.comes_before(e))) or 
+				(lastseg is None))):
+				lastseg=newseg
 		working_seghists=tmpseghists
 	myseghists+=working_seghists
 #	return myseghists
 
 	sys.stderr.write("done making seghists, now creating the CN profiles.\n")
-	for sgh in myseghists: 
-		create_CNprofiles_from_Edges(sgh, histScores, totalp)
+	datfh=open("seghists.dat", 'w')
+	for s in myseghists: 
+		datfh.write("%s\t%d\t%d\t%d\n" % (s.chr, s.start, s.end, len(s.esegs)))
+		create_CNprofiles_from_Edges(s, histScores, totalp)
 	sys.stderr.write("done making CN profiles\n")
+	datfh.close()
 	return(myseghists)
 
 def make_esegs_from_events(events): 
@@ -79,6 +90,6 @@ if __name__ == "__main__":
 	for sgh in seghists: 
 		fh.write(str(sgh))
 	fh.close()
-#	pickle.dump(seghists, open("seghists.pk", 'w'), pickle.HIGHEST_PROTOCOL)
+	pickle.dump(seghists, open("seghists.pk", 'w'), pickle.HIGHEST_PROTOCOL)
 
 	
