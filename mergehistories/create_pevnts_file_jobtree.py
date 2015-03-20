@@ -78,8 +78,8 @@ class MergePevntsFiles(Target):
 	def run(self): 
 		histseg.merge_pevnts_files(self.pevntsfiles, self.pevntsout, self.historyScores, self.totalp)
 		# clean up 
-		#for f in self.pevntsfiles: 
-		#	os.remove(f)
+		for f in self.pevntsfiles: 
+			os.remove(f)
 
 class MergeSingleBraneyFile(Target):
 	def __init__(self, braneyfn, evntsfile, sim):

@@ -128,6 +128,7 @@ class Braney_seg:
 			(((self.start > other.start and self.start < other.end and self.end > other.end)) or 
 			((self.start < other.start and self.end < other.end and self.end > other.start)))): 
 			return True
+		else: return False
 
 	def isbreakpoint(self): 
 		self.order_ends()

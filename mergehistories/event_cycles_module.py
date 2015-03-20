@@ -16,7 +16,7 @@ Global_BINWIDTH=10000
 Global_MAXCOST=300 
 Global_K=0
 Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
-Global_SPLITCYCLES=False #do we want to split all figure 8 types into smaller cycles? 
+Global_SPLITCYCLES=True#do we want to split all figure 8 types into smaller cycles? 
 Global_EVENTTYPES = ['any', 'amp', 'del', 'oth', 'amdl']
 
 # an Event is made up of multiple Braneysegs and some extra info
@@ -311,7 +311,7 @@ class Event:
 				else: 
 					numfiss+=1
 		if numsegs==0 and len(self.segs)==4: 
-			type=determine_4adj_cycle_type(self.segs, intra)
+			mytype=determine_4adj_cycle_type(self.segs, intra)
 		return (mytype, intra, numfuse, numfiss, numsegs, len(self.segs)) 
 	
 	def get_Event_length(self):

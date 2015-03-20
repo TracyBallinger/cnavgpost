@@ -14,7 +14,6 @@ import cnavgpost.diagnostics.do_order_correction as do_order_correction
 class EdgeSimulationData:
 	def __init__(self, event, histScores, totalp, refhistoryid=0): 
 		self.event=event
-		self.type=event.determineEventType()
 		(segstr, self.sign)=histseg.remove_signs_from_segstr(event.segstr)
 		self.cnval=event.cnval*self.sign		
 		self.isTrue=0  # this will be 0 if edge is FP, 1 if TP, 2 if TN, -1 if FN, and 3 if it's a linear combination of true events.  
@@ -37,8 +36,19 @@ class EdgeSimulationData:
 		event=self.event 
 		prevals=",".join(map(str, [self.refpreval, event.prevalmean, event.prevalsd]))
 		orders=",".join(map(str, [self.reforder, event.ordermean, event.ordersd]))
+		mytype=event.CharacterizeEvent()[0]
 		length=event.get_Event_length()
-		mystr="\t".join(map(str, [event.id, histseg.Global_EVENTTYPES[self.type], self.avecost, event.likelihood, event.cnval, self.isTrue, length, prevals, orders, event.numhists])) + "\n"	
+		mystr="\t".join(map(str, [
+			event.id, 
+			mytype,
+			self.avecost, 
+			event.likelihood, 
+			event.cnval, 
+			self.isTrue, 
+			length, 
+			prevals, 
+			orders, 
+			event.numhists])) + "\n"	
 		return mystr
 
 	def update_for_true_event(self, event, refhistoryid, histScores, totalp):  
@@ -66,15 +76,13 @@ class EdgeSimulationData:
 			event.likelihood=0
 		(self.refpreval, self.reforder, self.avecost) = (refpreval, reforder, avecost)
 
-def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh, breaks_fh, outdir):
-	for event in events:
-		if not event.histories: event.histories=histseg.listout_ranges(event.histRanges)
-	do_order_correction.main(events, 0, historyScores, statsout=os.path.join(outdir, "historystats.txt"))
+def analyze_simulation(events, refhistoryid, histScores, datout_fh, stats_fh, breaks_fh, outdir):
+#	do_order_correction.main(events, 0, histScores, statsout=os.path.join(outdir, "historystats.txt"))
 	#do_order_correction.main(events, 0, historyScores, usepreval=True)
+	do_order_correction.main(events, 0, histScores)
 	#make the cost of the refhistoryid 0 so that is doesn't get included in the likelihood calculation 
-	myhistScores=np.copy(historyScores)
-	myhistScores[np.where(historyScores[:,0] == refhistoryid),:]=0	 
-	totalp=histseg.compute_likelihood_histories(myhistScores[:,0], myhistScores)
+	histScores[np.where(histScores[:,0] == refhistoryid),:]=0	 
+	totalp=histseg.compute_likelihood_histories(histScores[:,0], histScores)
 	sys.stderr.write("totalp is %f\n" % totalp)
 	types=histseg.Global_EVENTTYPES 
 	TP=np.zeros(len(types), dtype=int)
@@ -86,7 +94,7 @@ def analyze_simulation(events, refhistoryid, historyScores, datout_fh, stats_fh,
 	FPesims=[]
 	myEdgeSimData=[] 
 	for event in events:
-		myedgesim=EdgeSimulationData(event, historyScores, totalp, refhistoryid)
+		myedgesim=EdgeSimulationData(event, histScores, totalp, refhistoryid)
 		etype=event.determineEventType()
 		if myedgesim.isTrue==1: 
 			TP[0]+=1
