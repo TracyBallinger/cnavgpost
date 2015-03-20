@@ -34,7 +34,6 @@ class Event:
 			self.indyRunCounts=data[7]
 			(self.numsegs, self.numadjs, self.numdisc) = map(int, [data[8]]+data[9].split(','))	
 			self.histories=[] 
-#			self.histRanges=[]
 			self.prevals=[] 
 			self.orders=[] 
 			self.segs=[]
@@ -52,7 +51,6 @@ class Event:
 			self.segstr=""
 			(self.numsegs, self.numadjs, self.numdisc) = (0 , 0,0)	
 			self.histories=[bseglist[0].historyid]
-#			self.histRanges=[]
 			self.indyRunCounts=""
 			self.prevals=[bseglist[0].preval]
 			self.orders=[bseglist[0].order]
@@ -83,7 +81,6 @@ class Event:
 		self.id = "%d.%d" % (self.histories[0], self.orders[0]) 
 		self.numhists=len(self.histories)
 		(self.numsims, self.indyRunCounts) = getIndRunCounts(self.histories)
-		#self.histRanges=getRanges(self.histories)
 		if historyScores is not None: 
 			self.compute_timing_wmeansd(historyScores)
 			self.likelihood=compute_likelihood_histories(self.histories, historyScores, totalp)
@@ -96,17 +93,11 @@ class Event:
 		if self.segstr=="":
 			self.make_segstr()
 		self.segs=[]
-#		if not self.histRanges:
-#			self.histRanges=getRanges(self.histories)
-#		(self.numsims, self.indyRunCounts) = getIndRunCounts(self.histories)
-		#self.histories=[]
 
 	# Unpacking of an event is done after it's been read in from a pickled file.  This basically undoes the trim (above). 
 	def unpack(self):
 		if not self.segs:
 			self.make_segs_from_str()
-		#if not self.histories: 	
-		#	self.histories=listout_ranges(self.histRanges)	
 	
 	# This makes a string from the genomic coordinates of the event (event being a flow in the CN-AVG).  
 	# The CN for the event will have the sign of whatever the first edge is.  The sign of the edges alternate after that. 	
@@ -118,14 +109,10 @@ class Event:
 		self.cnval = seg0.cnval 
 		mysegs=[]
 		for seg in self.segs: 
-	#		if seg.cnval < 0: sign="-"
-	#		else: sign="+"
 			if seg.adj: 
-				#s="%s/%s:%d(%s)-%s:%d(%s)" % (sign, seg.chr, seg.start, seg.st1, seg.chr2, seg.end, seg.st2)	
 				s="%s:%d(%s)-%s:%d(%s)" % (seg.chr, seg.start, seg.st1, seg.chr2, seg.end, seg.st2)	
 			else: 
 				s="%s:%d-%d" % (seg.chr, seg.start, seg.end)
-				#s="%s/%s:%d-%d" % (sign, seg.chr, seg.start, seg.end)
 			mysegs.append(s)	
 		self.segstr=",".join(mysegs) 
 	

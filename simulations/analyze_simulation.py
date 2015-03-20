@@ -186,12 +186,12 @@ def create_edge_tuplelist(event):
 	newlocs=[]
 	for loc in locs:
 		seg=False
-		m=re.search('([+|-])/(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
+		m=re.search('(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
 		if m:
 			(sign, chr1, s, st1, chr2, e, st2)=m.group(1,2,3,4,5,6,7)
 			# order the ends
 		else: 
-			m=re.search('([+|-])/(\w+):(-?\d+)-(\-?\d+)', loc)
+			m=re.search('(\w+):(-?\d+)-(\-?\d+)', loc)
 			if m: 
 				(sign, chr1, s, e) = m.group(1,2,3,4)
 				(chr2, st1, st2)=(chr1, "+", "+")
