@@ -105,7 +105,7 @@ class Braney_seg:
 		else: 
 			return False
 	
-	def order_ends(self):	
+	def order_ends(self):
 		if self.chr > self.chr2: 
 			(x, y, z) = (self.chr, self.start, self.st1)
 			(self.chr, self.start, self.st1) =(self.chr2, self.end, self.st2)

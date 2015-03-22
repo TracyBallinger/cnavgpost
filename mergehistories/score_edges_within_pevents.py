@@ -12,7 +12,7 @@ bindir="/inside/home/tballing/cnavg-study/cnavgmbin"
 
 def unique_loc_edges(alledges): 
 	for e in alledges: 
-		e.segstr=histseg.remove_signs_from_segstr(e.segstr)[0]
+		#e.segstr=histseg.remove_signs_from_segstr(e.segstr)[0]
 		e.cnval=0 #change this to 0 because it will be uninformative in this context
 	sortededges=sorted(alledges, key=lambda x: (x.segstr)) 
 	unique_edges=[]
@@ -42,9 +42,6 @@ def score_edges_within_pevents(allevents, historyScores, totalp, prev_error=0.05
 		unique_edges=unique_loc_edges(alledges)
 	else: 
 		unique_edges=histseg.unique_c_events_list(alledges)
-		splitoffs=histseg.get_split_offs(unique_edges)
-		unique_edges+=splitoffs
-		sys.stderr.write("number of splitoffs: %d\n number of edges %d" % (len(splitoffs), len(unique_edges)))
 	sys.stderr.write("totalp: %s\n" % (str(totalp)))
 	for edge in unique_edges: 
 		edge.update(historyScores)

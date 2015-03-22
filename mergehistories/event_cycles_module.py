@@ -32,7 +32,7 @@ class Event:
 			self.cnval=float(data[5])
 			self.segstr=data[6]
 			self.indyRunCounts=data[7]
-			(self.numsegs, self.numadjs, self.numdisc) = map(int, [data[8]]+data[9].split(','))	
+			(self.numsegs, self.numadjs) = map(int, [data[8]]+data[9].split(','))	
 			self.histories=[] 
 			self.prevals=[] 
 			self.orders=[] 
@@ -49,7 +49,7 @@ class Event:
 			(self.ordermean, self.ordersd)=(bseglist[0].order, "NA")
 			self.cnval=bseglist[0].cnval
 			self.segstr=""
-			(self.numsegs, self.numadjs, self.numdisc) = (0 , 0,0)	
+			(self.numsegs, self.numadjs) = (0 , 0)	
 			self.histories=[bseglist[0].historyid]
 			self.indyRunCounts=""
 			self.prevals=[bseglist[0].preval]
@@ -76,7 +76,7 @@ class Event:
 		if self.segstr=="": 
 			self.make_segstr()
 		if self.numsegs==0: 
-			self.count_discontsegs()
+			self.count_segs()
 		self.sort_values_by_history()
 		self.id = "%d.%d" % (self.histories[0], self.orders[0]) 
 		self.numhists=len(self.histories)
@@ -317,27 +317,21 @@ class Event:
 		else: 
 			return 0	
 
-	def count_discontsegs(self): 
+# this just counts the number of segments vs adjacencies for an event. 
+	def count_segs(self): 
 		if not self.dupsremoved: 
-			self.remove_dup_adj() # this will order the segments and adjacencies by location
+			self.remove_dup_adj() 
 		myadjs=[]
-		discont=0
+		(numsegs, numadjs)= (0,0)
 		if len(self.segs) == 0: 
 			self.make_segs_from_str()
 		for seg in self.segs: 
 			if seg.adj: 
-				myadjs.append(seg)
-				if seg.chr != seg.chr2: 
-					discont+=1
-		for i in xrange(len(myadjs)): 
-			adj1=myadjs[i]
-			for j in xrange(i,len(myadjs)):
-				adj2=myadjs[j]
-				if adj1.adjacency_cross(adj2): 
-					discont+=1
-		self.numsegs=len(self.segs)
-		self.numadjs=len(myadjs)
-		self.numdisc=discont 
+				numadjs+=1
+			else: 
+				numsegs+=1
+		self.numsegs=numsegs
+		self.numadjs=numadjs
 	
 	def get_chr_list(self): 
 		mychr=[]
@@ -452,14 +446,15 @@ def split_cycle(event):
 		sega=event.segs[ia]
 		for ib in xrange(ia): 
 			segb=event.segs[ib]
+	#		sys.stderr.write("ia %d, sega.start: %d, ib %d, segb.start: %d\n" % (ia, sega.start, ib, segb.start))
 			if ((((ia - ib) % 2) == 0) and sega.start == segb.start and sega.chr == segb.chr): 
 				newevent=copy.deepcopy(event)
 				newevent.segs=event.segs[ib:ia]
 				newevent.make_segstr()
-				newevent.count_discontsegs()
+				newevent.count_segs()
 				event.segs=event.segs[:ib]+event.segs[ia:]
 				event.make_segstr()
-				event.count_discontsegs()
+				event.count_segs()
 				sys.stderr.write("splitting at %d, %d\nnewevent: %d oldevent: %d\n" % (ib, ia, len(newevent.segs), len(event.segs)))
 				return[newevent, event]
 	return [event]
@@ -650,7 +645,7 @@ def split_off_duplicate(event):
 		return []
 
 def unique_c_events_list(eventslist):
-	sys.stderr.write("There are %d events before splitting\n" % (len(eventslist))) 
+	sys.stderr.write("There are %d events before splitting cycles\n" % (len(eventslist))) 
 	if Global_SPLITCYCLES: 
 		eventslist=split_cycles(eventslist)
 	eventslist=sorted(eventslist, key=lambda x: (x.segstr, x.cnval, x.prevals[0]))

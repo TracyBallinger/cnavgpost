@@ -179,29 +179,31 @@ def test_FN_events_for_linear_decomp(FNesims, fpexp):
 				else: 
 					FNesims[i].isTrue=-3
 
- 
+
 def create_edge_tuplelist(event):
 	segstr=event.segstr
 	locs=segstr.split(',')
 	newlocs=[]
-	for loc in locs:
+	sign=1
+	if event.cnval <0: sign =-1
+	for (i, loc) in enumerate(locs):
 		seg=False
 		m=re.search('(\w+):(-?\d+)\(([+|-])\)-(\w+):(-?\d+)\(([+|-])\)', loc)
 		if m:
-			(sign, chr1, s, st1, chr2, e, st2)=m.group(1,2,3,4,5,6,7)
+			(chr1, s, st1, chr2, e, st2)=m.group(1,2,3,4,5,6)
 			# order the ends
 		else: 
 			m=re.search('(\w+):(-?\d+)-(\-?\d+)', loc)
 			if m: 
-				(sign, chr1, s, e) = m.group(1,2,3,4)
+				(chr1, s, e) = m.group(1,2,3)
 				(chr2, st1, st2)=(chr1, "+", "+")
 				seg=True
 		if (chr1 > chr2) or (chr1==chr2 and s>e): 
 			(x,y,z)=(chr1, s, st1)
 			(chr1, s, st1)=(chr2, e, st2)
 			(chr2,e,st2)=(x, y,z)
-		mysign=1
-		if sign=="-": mysign=-1 
+		mysign =sign 
+		if (i % 2) ==1: mysign = sign * -1
 		if seg: newstr="%s:%s-%s" % (chr1, s, e)
 		else: newstr="%s:%s(%s)-%s:%s(%s)" % (chr1, s, st1, chr2, e, st2)
 		newlocs.append((newstr, mysign))
