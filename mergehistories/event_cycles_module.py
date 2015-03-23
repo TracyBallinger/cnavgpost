@@ -811,7 +811,7 @@ def historyids_to_indices(historyids, historyScores):
 	sim=np.round(hids/Global_BINWIDTH)
 	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1
 	newi=itr+sim*runlen
-	return newi
+	return newi.astype('int')
 
 def get_runlen(historyScores): 
 	runlen=max(np.fmod(historyScores[:,0], Global_BINWIDTH))+1

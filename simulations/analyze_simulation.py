@@ -14,7 +14,11 @@ import cnavgpost.diagnostics.do_order_correction as do_order_correction
 class EdgeSimulationData:
 	def __init__(self, event, histScores, totalp, refhistoryid=0): 
 		self.event=event
-		(segstr, self.sign)=histseg.remove_signs_from_segstr(event.segstr)
+		#(segstr, self.sign)=histseg.remove_signs_from_segstr(event.segstr)
+		self.sign=1
+		if event.cnval <0: 
+			self.sign=-1
+		segstr=event.segstr
 		self.cnval=event.cnval*self.sign		
 		self.isTrue=0  # this will be 0 if edge is FP, 1 if TP, 2 if TN, -1 if FN, and 3 if it's a linear combination of true events.  
 		self.refindex=-1

@@ -104,6 +104,7 @@ def get_history_lengths(events, histScores, simhist=None, usepreval=False):
 				myranks[hindices,j]=np.array(e.orders, dtype=float)
     #change the orders into ranks. 
 	hlengths=np.sum(myranks<mymax, axis=1).astype('float')
+	hlengths[hlengths==1]=1.1
 	xord=myranks.argsort(axis=1)
 	xranks=xord.argsort(axis=1)
 	cranks=xranks.astype('float') / (hlengths[:,None] -1)
