@@ -22,7 +22,7 @@ import cnavgpost.mergehistories.event_cycles_module as histseg
 import cnavgpost.mergehistories.create_pevnts_file_jobtree as pevntsjobtree 
 import cnavgpost.simulations.analyze_simulation as analyze_simulation
 import cnavgpost.genehistory.annotate_events as annotate_events
-import cnavgpost.genehistory.histories_to_gene_orders as histories_to_gene_orders
+#import cnavgpost.genehistory.histories_to_gene_orders as histories_to_gene_orders
 import cnavgpost.diagnostics.mcmc_mixing_analysis_jobtree as mcmcjobtree
 
 #======= Main Setup ===================

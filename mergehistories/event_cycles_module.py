@@ -16,7 +16,7 @@ Global_BINWIDTH=10000
 Global_MAXCOST=300 
 Global_K=0
 Global_SPLITOFFS=True # include duplicate events if an event occurs twice in the same history
-Global_SPLITCYCLES=True#do we want to split all figure 8 types into smaller cycles? 
+Global_SPLITCYCLES=False#do we want to split all figure 8 types into smaller cycles? 
 Global_EVENTTYPES = ['any', 'amp', 'del', 'oth', 'amdl']
 
 # an Event is made up of multiple Braneysegs and some extra info
@@ -32,7 +32,8 @@ class Event:
 			self.cnval=float(data[5])
 			self.segstr=data[6]
 			self.indyRunCounts=data[7]
-			(self.numsegs, self.numadjs) = map(int, [data[8]]+data[9].split(','))	
+			self.numsegs=int(data[8])
+			self.numadjs=0
 			self.histories=[] 
 			self.prevals=[] 
 			self.orders=[] 
@@ -60,7 +61,7 @@ class Event:
 			self.dupsremoved=False
 	
 	def __str__(self):
-		fstr="%s\t%s\t%d,%d\t%s,%s\t%s,%s\t%f\t%s\t%s\t%d\t%d,%d\n" % (self.id, str(self.likelihood), self.numhists, self.numsims, self.prevalmean, str(self.prevalsd), str(self.ordermean), str(self.ordersd), self.cnval, self.segstr, self.indyRunCounts, self.numsegs, self.numadjs, self.numdisc)
+		fstr="%s\t%s\t%d,%d\t%s,%s\t%s,%s\t%f\t%s\t%s\t%d\t%d\n" % (self.id, str(self.likelihood), self.numhists, self.numsims, self.prevalmean, str(self.prevalsd), str(self.ordermean), str(self.ordersd), self.cnval, self.segstr, self.indyRunCounts, self.numsegs, self.numadjs)
 		return fstr
 	
 	def __eq__(self, other): 
@@ -182,7 +183,7 @@ class Event:
 		dummyadjline="A\t%s\t%s\t%s\t%s\t%s\t%s\t%f\t%f\t%d\t0\t0\t%d\t%d\t0\t0\t0\t0\t0\n"
 		self.segs=[]
 		cycleorder=0
-		minhist=min(self.histories)
+		minhist=0
 		for (i, loc) in enumerate(mysegs): 
 			m=re.search('(\w+):(-?\d+)-(-?\d+)', loc)			
 			if m: 
