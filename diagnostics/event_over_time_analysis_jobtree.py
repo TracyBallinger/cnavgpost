@@ -63,7 +63,6 @@ class SetupLota(Target):
 		Pcount=0
 		for event in events: 
 			if opts.simulation:
-				event.histories=histseg.listout_ranges(event.histRanges)
 				if 0 in event.histories:
 					Pcount+=1
 					if len(event.histories)>1:
