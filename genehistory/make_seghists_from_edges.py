@@ -27,7 +27,7 @@ def create_seghists_from_eventsegs(esegs, histScores): #Note that the edges must
 					new_seghists=merge_in_edge(e, seghist)
 					tmpseghists+=new_seghists
 					merged=True
-					#sys.stderr.write("samelocus %d\n%s%s" % (len(tmpseghists), str(e), str(seghist)))
+#					sys.stderr.write("samelocus %d\n%s%s" % (len(tmpseghists), str(e), str(seghist)))
 			elif seghist.overlaps(e) or seghist.comes_after(e): 
 		 		tmpseghists.append(seghist)
 			elif seghist.comes_before(e): 
@@ -75,6 +75,17 @@ def make_esegs_from_events(events):
 	sortedesegs=sorted(myesegs, key=lambda x: (x.chr, x.start, x.end))
 	return sortedesegs	
 
+
+def main(events, histScores, outf): 
+	myesegs=make_esegs_from_events(events)
+	sys.stderr.write("loaded and sorted events\n")
+	seghists=create_seghists_from_eventsegs(myesegs, histScores)
+	fh=open(outf, 'w')
+	for sgh in seghists: 
+		fh.write(str(sgh))
+	fh.close()
+	
+
 if __name__ == "__main__": 
 	parser = argparse.ArgumentParser(description='Will take the edges from events and split the genome at breakpoints, with histories for each segment.')
 	parser.add_argument('pedges', help='a pickled files of event edges.')
@@ -83,13 +94,7 @@ if __name__ == "__main__":
 	args=parser.parse_args()
 	histScores=np.loadtxt(args.hstats, dtype=int)
 	events=pickle.load(open(args.pedges, 'rb'))
-	myesegs=make_esegs_from_events(events)
-	sys.stderr.write("loaded and sorted events\n")
-	seghists=create_seghists_from_eventsegs(myesegs, histScores)
-	fh=open(args.outf, 'w')
-	for sgh in seghists: 
-		fh.write(str(sgh))
-	fh.close()
-	pickle.dump(seghists, open("seghists.pk", 'w'), pickle.HIGHEST_PROTOCOL)
+	main(events, histScores, args.outf)
+	#pickle.dump(seghists, open("seghists.pk", 'w'), pickle.HIGHEST_PROTOCOL)
 
 	

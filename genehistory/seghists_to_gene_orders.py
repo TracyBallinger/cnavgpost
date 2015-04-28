@@ -31,7 +31,7 @@ def get_overlapping_seghists(bed, mysegs):
 		
 def get_best_overlapping_seghist(bed, mysegs): 
 	seghists=get_overlapping_seghists(bed, mysegs) 
-	sys.stderr.write("There are %d overlapping\n" % len(seghists))
+#	sys.stderr.write("There are %d overlapping\n" % len(seghists))
 	maxlsh=0
 	maxlbp=0
 	bestsh=0
@@ -57,14 +57,14 @@ def get_total_likelihood(CNprofs):
 		mytot+=c.likelihood
 	return mytot
 
-def main(segfn, bedfn, pval=0.5): 
+def main(segfn, bedfn, outfn, pval=0.5): 
 	mysegs=sgh.read_in_segs(segfn)
 	# get rid of chr if necessary, 
 	for s in mysegs: 
 		s.chr = s.chr.replace("chr", "")
 	mysegs=sorted(mysegs, key=lambda x: (x.chr, x.start, x.end))
-	sys.stderr.write("There are %d segs\n" % len(mysegs))
-#	sys.stdout.write("chr\tstart\tend\tname\tLtotal\tLmax\tpreval\tprevalsd\n")
+	outfh=open(outfn, 'w')
+	outfh.write("chr\tstart\tend\tname\tLtotal\tLmax\tpreval\tprevalsd\n")
 	for l in open(bedfn, 'r'): 
 		bed=bedmod.BedEntry(l)
 		seghist=get_best_overlapping_seghist(bed, mysegs)
@@ -79,7 +79,7 @@ def main(segfn, bedfn, pval=0.5):
 			mylscore=bestCN.likelihood
 		else: 
 			(mypreval, myprevalsd, mylscore)=(0,0, 0)
-		sys.stdout.write("\t".join(map(str, [
+		outfh.write("\t".join(map(str, [
 			bed.chr, bed.start, bed.end, bed.name,
 			ltot, mylscore, mypreval, myprevalsd]))+"\n")
 
@@ -88,5 +88,6 @@ if __name__== "__main__":
 	parser=argparse.ArgumentParser(description='give seghists and a bedfile of genes, it will score each gene by the time that it gets first hit.')
 	parser.add_argument('seghists', help='a file of seghists')
 	parser.add_argument('bedfile', help='a bedfile of genes to score.')
+	parser.add_argument('outfn', help='The output file')
 	args=parser.parse_args()
-	main(args.seghists, args.bedfile)
+	main(args.seghists, args.bedfile, args.outfn)

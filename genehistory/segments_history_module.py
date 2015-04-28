@@ -178,6 +178,8 @@ def merge_in_edge(edge, seghist):
 			newseg=copy.deepcopy(seghist)
 			newseg.start=edge.end+1
 			seghist.appendvals(edge)
+			seghist.start=edge.start
+			seghist.end=edge.end
 			new_segments.append(seghist)
 			new_segments.append(newseg)
 	return new_segments
