@@ -350,7 +350,8 @@ class Event:
 				if (seg.chr == chr and seg.start < end and seg.end>start): 
 					return True
 			elif seg.adj: 
-				if seg.chr == chr and ((seg.start <= end and seg.start >= start) or (seg.end <= end and seg.end >= start)):
+				if ((seg.chr == chr and (seg.start <= end and seg.start >= start)) or 
+					(seg.chr2 == chr and (seg.end <= end and seg.end >= start))):
 					return True 
 		return False
 	
