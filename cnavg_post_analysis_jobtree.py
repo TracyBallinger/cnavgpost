@@ -101,7 +101,7 @@ class DoAnalysisOfMergedEvents(Target):
 		seghistfile=os.path.join(outputdir, "seghists.txt")
 		if opts.sgh or not os.path.exists(seghistfile): 
 			self.logToMaster("Creating seghists file ... %s" % seghistfile)
-			make_seghists_from_edges.main(pickle.load(open(pevntsfile, 'rb')), self.historyScores, seghistfile)
+			make_seghists_from_edges.main(pickle.load(open(pedgesfile, 'rb')), self.historyScores, seghistfile)
 			
 		# label the seghists if an annotation file is given
 		if opts.bedfile: 
